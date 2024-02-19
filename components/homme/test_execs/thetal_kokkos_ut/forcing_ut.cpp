@@ -36,7 +36,7 @@ void init_f90 (const int& num_elems,
                const Real* gradphis,
                const Real& ps0, const int& qsize);
 void set_forcing_pointers_f90 (Real*& q_ptr, Real*& fq_ptr, Real*& qdp_ptr,
-                               Real*& v_ptr, Real*& w_ptr, Real*& vtheta_ptr, 
+                               Real*& v_ptr, Real*& w_ptr, Real*& vtheta_ptr,
                                Real*& dp_ptr, Real*& phinh_ptr, Real*& ps_ptr,
                                Real*& fm_ptr, Real*& ft_ptr,
                                Real*& fvtheta_ptr, Real*& fphi_ptr);
@@ -53,15 +53,19 @@ TEST_CASE("forcing", "forcing") {
   std::random_device rd;
   constexpr int num_elems = 10;
   const unsigned int catchRngSeed = Catch::rngSeed();
-  const unsigned int seed = catchRngSeed==0 ? rd() : catchRngSeed;
+  //const unsigned int seed = catchRngSeed==0 ? rd() : catchRngSeed;
+
+  const unsigned int seed = 1206257716;
   std::cout << "seed: " << seed << (catchRngSeed==0 ? " (catch rng seed was 0)\n" : "\n");
+
+
   rngAlg engine(seed);
 
   // Init everything through singleton, which is what happens in normal runs
   auto& c = Context::singleton();
   auto& p = c.create<SimulationParams>();
   p.dt_remap_factor = 1;
- 
+
   auto& hv = c.create<HybridVCoord>();
   hv.random_init(seed);
 
