@@ -87,6 +87,7 @@ public:
                                      const vos& field_names_eamxx,
                                      const util::TimeStamp& initial_ts,
                                      const field_mgr_ptr field_mgr,
+                                     const std::string& grid_name,
                                      const int time_index = -1);
 
   // Version of above, but where nc and eamxx field names are identical
@@ -94,13 +95,14 @@ public:
                                      const vos& field_names,
                                      const util::TimeStamp& initial_ts,
                                      const field_mgr_ptr field_mgr,
+                                     const std::string& grid_name,
                                      const int time_index = -1)
   {
-    read_fields_from_file_for_iop(file_name, field_names, field_names, initial_ts, field_mgr, time_index);
+    read_fields_from_file_for_iop(file_name, field_names, field_names, initial_ts, field_mgr, grid_name, time_index);
   }
 
   // Set fields using data loaded from the iop file
-  void set_fields_from_iop_data(const field_mgr_ptr field_mgr);
+  void set_fields_from_iop_data(const field_mgr_ptr field_mgr, const std::string& grid_name);
 
   // The IOP file may contain temperature values that are
   // 0 at or above the surface. Correct these values using
@@ -111,7 +113,7 @@ public:
   // Note: We only need to use the first column because during
   //       the loading of ICs, every columns will have the same
   //       data.
-  void correct_temperature_and_water_vapor(const field_mgr_ptr field_mgr);
+  void correct_temperature_and_water_vapor(const field_mgr_ptr field_mgr, const std::string& grid_name);
 
   ekat::ParameterList& get_params() { return m_params; }
 

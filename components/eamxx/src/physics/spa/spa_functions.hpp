@@ -134,6 +134,7 @@ struct SPAFunctions
                const std::shared_ptr<const AbstractGrid>& io_grid_)
       : iop_data_manager(iop_), file_name(file_name_)
     {
+      grid_name = io_grid_->name();
       field_mgr = std::make_shared<FieldManager>(io_grid_);
       for (auto& f : io_fields_) {
         field_mgr->add_field(f);
@@ -145,9 +146,10 @@ struct SPAFunctions
     }
 
     void read_variables(const int time_index, const util::TimeStamp& ts) {
-      iop_data_manager->read_fields_from_file_for_iop(file_name, field_names, ts, field_mgr, time_index);
+      iop_data_manager->read_fields_from_file_for_iop(file_name, field_names, ts, field_mgr, grid_name, time_index);
     }
 
+    std::string grid_name;
     iop_data_ptr_type iop_data_manager;
     std::string file_name;
     std::vector<std::string> field_names;

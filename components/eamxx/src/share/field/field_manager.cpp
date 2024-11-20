@@ -4,46 +4,61 @@ namespace scream
 {
 
 FieldManager::
-FieldManager (const grid_ptr_type& grid)
-  : m_repo_state (RepoState::Clean)
-  , m_grid       (grid)
+FieldManager (const std::shared_ptr<const AbstractGrid>& grid)
+ : FieldManager (std::make_shared<LibraryGridsManager>(grid))
 {
-  EKAT_REQUIRE_MSG (m_grid!=nullptr,
-      "Error! Input grid pointer is not valid.");
+  // Nothing else to do
+}
+
+FieldManager::
+FieldManager (const std::shared_ptr<const GridsManager>& gm)
+ : m_grids_mgr (gm)
+{
+  EKAT_REQUIRE_MSG (m_grids_mgr!=nullptr,
+      "Error! Input grids manager pointer is not valid.");
+
+  // For each grid, initialize maps
+  for (auto gname : m_grids_mgr->get_grid_names()) {
+    m_repo_state[gname] = RepoState::Clean;
+    m_fields[gname] = std::map<ci_string,std::shared_ptr<Field>>();
+    m_field_groups[gname] = std::map<ci_string,std::shared_ptr<group_info_type>>();
+    m_group_requests[gname] = std::map<std::string, std::set<GroupRequest>>();
+  }
 }
 
 void FieldManager::register_field (const FieldRequest& req)
 {
+  const auto& id = req.fid;
+  const auto& grid_name = id.get_grid_name();
+
   // Sanity checks
-  EKAT_REQUIRE_MSG (m_repo_state!=RepoState::Clean,
+  EKAT_REQUIRE_MSG (m_repo_state.at(grid_name)!=RepoState::Clean,
       "Error! Repo state is not 'Open' yet. You must call registration_begins() first.\n");
-  EKAT_REQUIRE_MSG (m_repo_state!=RepoState::Closed,
+  EKAT_REQUIRE_MSG (m_repo_state.at(grid_name)!=RepoState::Closed,
       "Error! Repo state is not 'Open' anymore. You already called registration_ends().\n");
 
-  const auto& id = req.fid;
-
-  // Make sure the grid name from the id matches the name of m_grid
-  EKAT_REQUIRE_MSG(id.get_grid_name()==m_grid->name(),
-      "Error! Input field request identifier stores a different grid name than the FM:\n"
-      "         - input id grid name: " + id.get_grid_name() + "\n"
-      "         - stored grid name:   " + m_grid->name() + "\n");
+  // Make sure this FM contains a grid corresponding to the input grid name
+  EKAT_REQUIRE_MSG(m_grids_mgr->has_grid(grid_name),
+    "Error! Attempting to register field on grid not in the FM's grids manager:\n"
+    "  - FieldRequest grid: " + grid_name + "\n"
+    "  - Grids stored by FM: " + m_grids_mgr->print_available_grids() + "\n");
 
   // Get or create the new field
   if (req.incomplete) {
-    m_incomplete_requests.emplace_back(id.name(),id.get_grid_name());
+    m_incomplete_requests.emplace_back(id.name(),grid_name);
   } else {
-    if (!has_field(id.name())) {
+    if (!has_field(id.name(), grid_name)) {
 
       EKAT_REQUIRE_MSG (id.data_type()==field_valid_data_types().at<Real>(),
           "Error! While refactoring, we only allow the Field data type to be Real.\n"
           "       If you're done with refactoring, go back and fix things.\n");
-      m_fields[id.name()] = std::make_shared<Field>(id);
+      m_fields[grid_name][id.name()] = std::make_shared<Field>(id);
     } else {
       // Make sure the input field has the same layout and units as the field already stored.
       // TODO: this is the easiest way to ensure everyone uses the same units.
       //       However, in the future, we *may* allow different units, providing
       //       the users with conversion routines perhaps.
-      const auto id0 = m_fields[id.name()]->get_header().get_identifier();
+      const auto id0 = m_fields[grid_name][id.name()]->get_header().get_identifier();
       EKAT_REQUIRE_MSG(id.get_units()==id0.get_units(),
           "Error! Field '" + id.name() + "' already registered with different units:\n"
           "         - input field units:  " + id.get_units().to_string() + "\n"
@@ -56,15 +71,9 @@ void FieldManager::register_field (const FieldRequest& req)
           "         - stored id: " + id0.get_id_string() + "\n"
           "       Please, check and make sure all atmosphere processes use the same layout for a given field.\n");
     }
-  }
 
-  if (req.subview_info.dim_idx>=0) {
-    // This is a request for a subfield. Store request info, so we can correctly set up
-    // the subfield at the end of registration_ends() call
-    m_subfield_requests.emplace(id.name(),req);
-  } else if (not req.incomplete) {
     // Make sure the field can accommodate the requested value type
-    m_fields[id.name()]->get_header().get_alloc_properties().request_allocation(req.pack_size);
+    m_fields[grid_name][id.name()]->get_header().get_alloc_properties().request_allocation(req.pack_size);
   }
 
   // Finally, add the field to the given groups
@@ -74,7 +83,7 @@ void FieldManager::register_field (const FieldRequest& req)
   //       that each field belongs to.
   for (const auto& group_name : req.groups) {
     // Get group (and init ptr, if necessary)
-    auto& group_info = m_field_groups[group_name];
+    auto& group_info = m_field_groups[grid_name][group_name];
     if (group_info==nullptr) {
       group_info = std::make_shared<group_info_type>(group_name);
     }
@@ -88,90 +97,107 @@ void FieldManager::register_field (const FieldRequest& req)
     // add a "trivial" GroupRequest for this group, meaning no bundling,
     // pack size 1, and no derivation from another group. This ensure that each group
     // in m_field_groups also appears in the m_group_requests map.
-    register_group(GroupRequest(group_name,m_grid->name()));
+    register_group(GroupRequest(group_name,grid_name));
   }
 }
 
 void FieldManager::register_group (const GroupRequest& req)
 {
-  EKAT_REQUIRE_MSG (req.grid==m_grid->name(),
-      "Error! Input GroupRequest grid does not match the grid of this FieldManager.\n"
-      "       Request grid: " + req.grid + "\n"
-      "       Stored grid:  " + m_grid->name() + "\n");
+  const auto grid_name = req.grid;
+
+  // Make sure this FM contains a grid corresponding to the input grid name
+  EKAT_REQUIRE_MSG(m_grids_mgr->has_grid(grid_name),
+    "Error! Attempting to register group on grid not in the FM's grids manager:\n"
+    "  - GroupRequest grid:  " + grid_name + "\n"
+    "  - Grids stored by FM: " + m_grids_mgr->print_available_grids() + "\n");
 
   // Groups have to be handled once registration is over, so for now simply store the request,
   // and create an empty group info
-  m_group_requests[req.name].insert(req);
+  m_group_requests[grid_name][req.name].insert(req);
 
-  m_field_groups.emplace(req.name,std::make_shared<group_info_type>(req.name));
+  m_field_groups[grid_name].emplace(req.name,std::make_shared<group_info_type>(req.name));
 }
 
 void FieldManager::
-add_to_group (const std::string& field_name, const std::string& group_name)
+add_to_group (const std::string& field_name, const std::string& grid_name, const std::string& group_name)
 {
-  EKAT_REQUIRE_MSG (m_repo_state==RepoState::Closed,
+  EKAT_REQUIRE_MSG (m_repo_state.at(grid_name)==RepoState::Closed,
       "Error! You cannot call 'add_to_group' until after 'registration_ends' has been called.\n");
-  auto& group = m_field_groups[group_name];
+  auto& group = m_field_groups[grid_name][group_name];
   if (not group) {
     group = std::make_shared<FieldGroupInfo>(group_name);
   }
   EKAT_REQUIRE_MSG (not group->m_bundled,
       "Error! Cannot add fields to a group that is bundled.\n"
-      "   group name: " + field_name + "\n");
+      "   field name: " + field_name + "\n"
+      "   grid name:  " + grid_name + "\n"
+      "   group name: " + group_name + "\n");
 
-  EKAT_REQUIRE_MSG (has_field(field_name),
+  EKAT_REQUIRE_MSG (has_field(field_name, grid_name),
       "Error! Cannot add field to group, since the field is not present in this FieldManager.\n"
       "   field name: " + field_name + "\n"
+      "   grid name:  " + grid_name + "\n"
       "   group name: " + group_name + "\n");
 
   group->m_fields_names.push_back(field_name);
-  auto& ft = get_field(field_name).get_header().get_tracking();
+  auto& ft = get_field(field_name, grid_name).get_header().get_tracking();
   ft.add_to_group(group);
 }
 
-const FieldIdentifier& FieldManager::get_field_id (const std::string& name) const {
-  auto ptr = get_field_ptr(name);
+bool FieldManager::
+has_field (const std::string& field_name, const std::string& grid_name) const {
+  return m_fields.at(grid_name).find(field_name)!=m_fields.at(grid_name).end();
+}
+
+bool FieldManager::
+has_group (const std::string& name, const std::string& grid_name) const {
+  return m_field_groups.at(grid_name).find(name)!=m_field_groups.at(grid_name).end();
+}
+
+const FieldIdentifier& FieldManager::
+get_field_id (const std::string& name, const std::string& grid_name) const {
+  auto ptr = get_field_ptr(name, grid_name);
   EKAT_REQUIRE_MSG(ptr!=nullptr,
-      "Error! Field '" + name + "' not found.\n");
+    "Error! Field '" + name + "' on grid '" + grid_name + "' not found.\n");
   return ptr->get_header().get_identifier();
 }
 
-Field FieldManager::get_field (const std::string& name) const {
+Field FieldManager::get_field (const std::string& name, const std::string& grid_name) const {
 
-  EKAT_REQUIRE_MSG(m_repo_state==RepoState::Closed,
+  EKAT_REQUIRE_MSG(m_repo_state.at(grid_name)==RepoState::Closed,
       "Error! Cannot get fields from the repo while registration has not yet completed.\n");
-  auto ptr = get_field_ptr(name);
-  EKAT_REQUIRE_MSG(ptr!=nullptr, "Error! Field " + name + " not found.\n");
+  auto ptr = get_field_ptr(name, grid_name);
+  EKAT_REQUIRE_MSG(ptr!=nullptr, "Error! Field " + name + " on grid " + grid_name + " not found.\n");
   return *ptr;
 }
 
-Field& FieldManager::get_field (const std::string& name) {
+Field& FieldManager::get_field (const std::string& name, const std::string& grid_name) {
 
-  EKAT_REQUIRE_MSG(m_repo_state==RepoState::Closed,
+  EKAT_REQUIRE_MSG(m_repo_state.at(grid_name)==RepoState::Closed,
       "Error! Cannot get fields from the repo while registration has not yet completed.\n");
-  auto ptr = get_field_ptr(name);
-  EKAT_REQUIRE_MSG(ptr!=nullptr, "Error! Field " + name + " not found.\n");
+  auto ptr = get_field_ptr(name, grid_name);
+  EKAT_REQUIRE_MSG(ptr!=nullptr, "Error! Field " + name + " on grid " + grid_name + " not found.\n");
   return *ptr;
 }
 
 FieldGroup FieldManager::
-get_field_group (const std::string& group_name) const
+get_field_group (const std::string& group_name, const std::string& grid_name) const
 {
   // Sanity checks
-  EKAT_REQUIRE_MSG(m_repo_state==RepoState::Closed,
+  EKAT_REQUIRE_MSG(m_repo_state.at(grid_name)==RepoState::Closed,
       "Error! Cannot get field groups from the repo while registration has not yet completed.\n");
-  EKAT_REQUIRE_MSG (has_group(group_name),
-      "Error! Field group '" + group_name + "' not found.\n");
+  EKAT_REQUIRE_MSG (has_group(group_name, grid_name),
+      "Error! Field group '" + group_name + "' on grid '" + grid_name + "' not found.\n");
 
   // Create an empty group
   FieldGroup group(group_name);
 
   // Set the info in the group
-  group.m_info = m_field_groups.at(group_name);
+  group.m_info = m_field_groups.at(grid_name).at(group_name);
 
   // Find all the fields and set them in the group
   for (const auto& fname : group.m_info->m_fields_names) {
-    auto f = get_field_ptr(fname);
+    auto f = get_field_ptr(fname, grid_name);
     group.m_fields[fname] = f;
   }
 
@@ -190,20 +216,22 @@ get_field_group (const std::string& group_name) const
 }
 
 void FieldManager::
-init_fields_time_stamp (const util::TimeStamp& t0)
+init_fields_time_stamp (const util::TimeStamp& t0, const std::string& grid_name)
 {
-  EKAT_REQUIRE_MSG(m_repo_state==RepoState::Closed,
-      "Error! Cannot set initial time stamp until registration has completed.\n");
+  EKAT_REQUIRE_MSG(m_repo_state.at(grid_name)==RepoState::Closed,
+      "Error! Cannot set initial time stamp on grid \"" + grid_name + "\" until registration has completed.\n");
 
-  for (auto it : m_fields) {
-    it.second->get_header().get_tracking().update_time_stamp(t0);
+  for (auto field_it : m_fields[grid_name]) {
+    field_it.second->get_header().get_tracking().update_time_stamp(t0);
   }
 }
 
 void FieldManager::registration_begins ()
 {
-  // Update the state of the repo
-  m_repo_state = RepoState::Open;
+  // Update the state of the repos
+  for (auto gname : m_grids_mgr->get_grid_names()) {
+    m_repo_state[gname] = RepoState::Open;
+  }
 }
 
 void FieldManager::registration_ends ()
@@ -211,7 +239,7 @@ void FieldManager::registration_ends ()
   // Before doing anything, ensure that for each incomplete requests the field has
   // been registered with a complete FID.
   for (const auto& it : m_incomplete_requests) {
-    EKAT_REQUIRE_MSG (has_field(it.first),
+    EKAT_REQUIRE_MSG (has_field(it.first, it.second),
         "Error! Found an incomplete FieldRequest for a field not registered with a valid identifier.\n"
         "  - field name: " + it.first + "\n"
         "  - grid  name: " + it.second + "\n");
@@ -281,373 +309,387 @@ void FieldManager::registration_ends ()
   // request for group A that depends on the content of group B, the FieldGroupInfo
   // for group A is updated to contain the correct fields, based on the content
   // of group B. It also checks that the requests are not inconsistent.
-  pre_process_group_requests ();
+  for (auto grid_it : m_grids_mgr->get_repo()) {
+    const auto& grid_name = grid_it.first;
+    const auto& grid = grid_it.second;
 
-  // Gather a list of groups to be bundled
-  std::list<std::string> groups_to_bundle;
-  for (const auto& greqs : m_group_requests) {
-    for (const auto& r : greqs.second) {
-      if (r.bundling!=Bundling::NotNeeded) {
-        // There's at least one request for this group to be bunlded.
-        groups_to_bundle.push_back(greqs.first);
-      }
-    }
-  }
-  ::scream::sort(groups_to_bundle);
-  groups_to_bundle.unique();
+    pre_process_group_requests (grid_name);
 
-  // Homme currently wants qv to be the first tracer. We should be able to
-  // modify Homme, to use something like qv_idx. However, that requires
-  // extensive changes in Homme. Instead, we hack our way around this limitatin
-  // (for now), and rearrange groups/fields so that we can expect qv to be the
-  // first tracer.
-  bool qv_must_come_first = false;
-  if (has_field("qv")) {
-    auto it = ekat::find(groups_to_bundle,"tracers");
-    if (it!=groups_to_bundle.end()) {
-      // Bring tracers to the front, so it will be processed first
-      std::swap(*it,groups_to_bundle.front());
-
-      // Adding the 'fake' group G=(qv) at the front of groups_to_bundle ensures qv won't be put
-      // in the middle of the tracers group. We use a highly unlikely group name, to avoid clashing
-      // with a real group name. Later, after having found an global ordering for the tracers fields,
-      // we will remove this group.
-      groups_to_bundle.push_front("__qv__");
-      m_field_groups.emplace("__qv__",std::make_shared<group_info_type>("__qv__"));
-      m_field_groups.at("__qv__")->m_fields_names.push_back("qv");
-      qv_must_come_first = true;
-    }
-  }
-
-  // Do all the bundling stuff only if there are groups do bundle at all.
-  if (groups_to_bundle.size()>0) {
-    using namespace ShortFieldTagsNames;
-
-    // A cluster is a list of names of groups in the cluster
-    using cluster_type = std::list<std::string>;
-
-    // Determine if two lists have elements in common (does not compute the intersection)
-    auto intersect = [] (const std::list<ci_string>& lhs,
-                         const std::list<ci_string>& rhs) -> bool {
-      for (const auto& s : lhs) {
-        if (ekat::contains(rhs,s)) {
-          return true;
+    // Gather a list of groups to be bundled
+    std::list<std::string> groups_to_bundle;
+    for (const auto& greqs : m_group_requests.at(grid_name)) {
+      for (const auto& r : greqs.second) {
+        if (r.bundling!=Bundling::NotNeeded) {
+          // There's at least one request for this group to be bunlded.
+          groups_to_bundle.push_back(greqs.first);
         }
       }
-      return false;
-    };
+    }
+    ::scream::sort(groups_to_bundle);
+    groups_to_bundle.unique();
 
-    std::list<cluster_type> clusters;
-    std::list<std::string> added_to_a_cluster;
-    while (added_to_a_cluster.size()<groups_to_bundle.size()) {
-      cluster_type c;
-      auto first = groups_to_bundle.begin();
-      c.push_front(*first);
-      groups_to_bundle.erase(first);
+    // Homme currently wants qv to be the first tracer. We should be able to
+    // modify Homme, to use something like qv_idx. However, that requires
+    // extensive changes in Homme. Instead, we hack our way around this limitatin
+    // (for now), and rearrange groups/fields so that we can expect qv to be the
+    // first tracer.
+    bool qv_must_come_first = false;
+    if (has_field("qv", grid_name)) {
+      auto it = ekat::find(groups_to_bundle,"tracers");
+      if (it!=groups_to_bundle.end()) {
+        // Bring tracers to the front, so it will be processed first
+        std::swap(*it,groups_to_bundle.front());
 
-      for (const auto& gn : groups_to_bundle) {
-        if (ekat::contains(added_to_a_cluster,gn)) {
-          // This group has been added to a cluster already
-          continue;
-        }
+        // Adding the 'fake' group G=(qv) at the front of groups_to_bundle ensures qv won't be put
+        // in the middle of the tracers group. We use a highly unlikely group name, to avoid clashing
+        // with a real group name. Later, after having found an global ordering for the tracers fields,
+        // we will remove this group.
+        groups_to_bundle.push_front("__qv__");
+        m_field_groups.at(grid_name).emplace("__qv__",std::make_shared<group_info_type>("__qv__"));
+        m_field_groups.at(grid_name).at("__qv__")->m_fields_names.push_back("qv");
+        qv_must_come_first = true;
+      }
+    }
 
-        // Get the fields of this group
-        const auto& fnames = m_field_groups.at(gn)->m_fields_names;
-        for (const auto& c_gn : c) {
-          const auto& c_fnames = m_field_groups.at(c_gn)->m_fields_names;
-          if (intersect(fnames,c_fnames)) {
-            // Ok, group gn intersects the cluser in at least one group (c_gn).
-            // We add gn to the cluster, then break
-            c.push_back(gn);
-            added_to_a_cluster.push_back(gn);
-            break;
+    // Do all the bundling stuff only if there are groups do bundle at all.
+    if (groups_to_bundle.size()>0) {
+      using namespace ShortFieldTagsNames;
+
+      // A cluster is a list of names of groups in the cluster
+      using cluster_type = std::list<std::string>;
+
+      // Determine if two lists have elements in common (does not compute the intersection)
+      auto intersect = [] (const std::list<ci_string>& lhs,
+                          const std::list<ci_string>& rhs) -> bool {
+        for (const auto& s : lhs) {
+          if (ekat::contains(rhs,s)) {
+            return true;
           }
         }
+        return false;
+      };
+
+      std::list<cluster_type> clusters;
+      std::list<std::string> added_to_a_cluster;
+      while (added_to_a_cluster.size()<groups_to_bundle.size()) {
+        cluster_type c;
+        auto first = groups_to_bundle.begin();
+        c.push_front(*first);
+        groups_to_bundle.erase(first);
+
+        for (const auto& gn : groups_to_bundle) {
+          if (ekat::contains(added_to_a_cluster,gn)) {
+            // This group has been added to a cluster already
+            continue;
+          }
+
+          // Get the fields of this group
+          const auto& fnames = m_field_groups.at(grid_name).at(gn)->m_fields_names;
+          for (const auto& c_gn : c) {
+            const auto& c_fnames = m_field_groups.at(grid_name).at(c_gn)->m_fields_names;
+            if (intersect(fnames,c_fnames)) {
+              // Ok, group gn intersects the cluser in at least one group (c_gn).
+              // We add gn to the cluster, then break
+              c.push_back(gn);
+              added_to_a_cluster.push_back(gn);
+              break;
+            }
+          }
+        }
+
+        clusters.emplace_back(c);
       }
 
-      clusters.emplace_back(c);
-    }
+      // Now we have clusters. For each cluster, build the list of lists, and call
+      // the contiguous_superset utility.
+      for (auto& cluster : clusters) {
+        using LOL_t = std::list<std::list<ci_string>>;
 
-    // Now we have clusters. For each cluster, build the list of lists, and call
-    // the contiguous_superset utility.
-    for (auto& cluster : clusters) {
-      using LOL_t = std::list<std::list<ci_string>>;
-
-      LOL_t groups_fields;
-      for (const auto& gn : cluster) {
-        groups_fields.push_back(m_field_groups.at(gn)->m_fields_names);
-        ::scream::sort(groups_fields.back());
-      }
-
-      auto cluster_ordered_fields = contiguous_superset(groups_fields);
-      while (cluster_ordered_fields.size()==0) {
-        // Try to see if there's a group we can remove, that is, a group
-        // for which bundling is only Preferred. If there's no such group,
-        // we break the loop, and we will crap out.
-
-        std::list<std::string>::iterator it = cluster.end();
+        LOL_t groups_fields;
         for (const auto& gn : cluster) {
-          const auto& reqs = m_group_requests.at(gn);
-          bool remove_this = true;
-          for (const auto& r : reqs) {
-            if (r.bundling==Bundling::Required) {
-              // Can't remove this group, cause at least one request "requires" bundling
-              remove_this = false;
+          groups_fields.push_back(m_field_groups.at(grid_name).at(gn)->m_fields_names);
+          ::scream::sort(groups_fields.back());
+        }
+
+        auto cluster_ordered_fields = contiguous_superset(groups_fields);
+        while (cluster_ordered_fields.size()==0) {
+          // Try to see if there's a group we can remove, that is, a group
+          // for which bundling is only Preferred. If there's no such group,
+          // we break the loop, and we will crap out.
+
+          std::list<std::string>::iterator it = cluster.end();
+          for (const auto& gn : cluster) {
+            const auto& reqs = m_group_requests.at(grid_name).at(gn);
+            bool remove_this = true;
+            for (const auto& r : reqs) {
+              if (r.bundling==Bundling::Required) {
+                // Can't remove this group, cause at least one request "requires" bundling
+                remove_this = false;
+                break;
+              }
+            }
+
+            if (remove_this) {
+              // It's ok to try and remove this group from the cluster
+              it = ekat::find(cluster,gn);
               break;
             }
           }
 
-          if (remove_this) {
-            // It's ok to try and remove this group from the cluster
-            it = ekat::find(cluster,gn);
+          if (it==cluster.end()) {
+            // We were not able to find a group that can be removed from the cluster,
+            // meaning that all groups in the cluster are "Required" to be bunlded.
+            // Time to quit.
+            break;
+          }
+
+          // Ok, let's remove group *it, and try again
+          // Note: we have to remove the group name from gnames, but we also have to
+          //       remove its list of fields from group_fields
+          auto pos = std::distance(cluster.begin(),it);
+          cluster.erase(std::next(cluster.begin(),pos));
+          groups_fields.erase(std::next(groups_fields.begin(),pos));
+          cluster_ordered_fields = contiguous_superset(groups_fields);
+        }
+
+        if (cluster_ordered_fields.size()==0) {
+          // We were not able to accommodate all the requests bundling the groups
+          // in this cluster. We have to error out. But first, let's print some
+          // information, so the developers/users can have a shot at fixing this
+          // (e.g., by changing the request for bundling in some Atm Proc).
+          std::cout << "Error! Field manager was not able to accommodate the following\n"
+                    << "       requests on grid " << grid_name <<  " for bundled groups:\n";
+          for (const auto& gn : cluster) {
+            std::cout << "   - " << gn << "\n";
+          }
+          std::cout << "       Consdier modifying the Atm Procs where these groups are requested.\n"
+                    << "       For instance, you may ask for 'Preferred' bundling, rather than 'Required'\n";
+
+          EKAT_ERROR_MSG (" -- ERROR --\n");
+        }
+
+        // Ok, if we got here, it means we can allocate the cluster as a field, and then subview all the groups
+        // Steps:
+        //  - check if there's a group in the cluster containing all the fields. If yes, use that group
+        //    name for the bundled field, otherwise make one up from the names of all groups in the cluster.
+        //  - allocate the cluster field F.
+        //  - loop over the groups in the cluster, and subview F at the proper (contiguous) indices.
+
+        // WARNING: this lines should be removed if we move away from Homme's requirement that
+        //          qv be the first tracer
+        if (qv_must_come_first) {
+          auto qv_it = ekat::find(cluster_ordered_fields,"qv");
+          if (qv_it!=cluster_ordered_fields.end()) {
+            // Check that qv comes first or last (if last, reverse the list). If not, error out.
+            // NOTE: I *think* this should not happen, unless 'tracers' is a subgroup of a bigger group.
+            EKAT_REQUIRE_MSG(qv_it==cluster_ordered_fields.begin() || std::next(qv_it,1)==cluster_ordered_fields.end(),
+                "Error! The water vapor field has to be the first tracer, but it is not.\n");
+
+            if (qv_it!=cluster_ordered_fields.begin()) {
+              // Note: reversing the order of the fields preserves subgroups contiguity
+              cluster_ordered_fields.reverse();
+            }
+
+            // Remove __qv__ from the cluster (if present)
+            auto qv_gr_it = ekat::find(cluster,"__qv__");
+            if (qv_gr_it!=cluster.end()) {
+              cluster.erase(qv_gr_it);
+            }
+          }
+        }
+
+        // Check if there is a group with all the fields. Notice that it is enough to check
+        // if any list in the LOL has the same length as cluster_ordered_fields.
+        // If not, we will set cluster_name = $group1_name | $group2_name | ...
+        // Note: cluster_name will be the name of the field bundling all fields in the cluster's groups
+        std::string cluster_name;
+        for (const auto& gn : cluster) {
+          // Start building cluster_name by "or-ing" all gn's.
+          if (gn==cluster.front()) {
+            cluster_name = gn;
+          } else {
+            cluster_name += " | " + gn;
+          }
+
+          const auto& fnames = m_field_groups.at(grid_name).at(gn)->m_fields_names;
+          if (fnames.size()==cluster_ordered_fields.size()) {
+            // Found a group in the cluster that contains all fields.
+            cluster_name = gn;
             break;
           }
         }
 
-        if (it==cluster.end()) {
-          // We were not able to find a group that can be removed from the cluster,
-          // meaning that all groups in the cluster are "Required" to be bunlded.
-          // Time to quit.
-          break;
+        // Figure out the layout of the fields in this cluster,
+        // and make sure they all have the same layout
+        LayoutType lt = LayoutType::Invalid;
+        FieldLayout f_layout = FieldLayout::invalid();
+        for (const auto& fname : cluster_ordered_fields) {
+          const auto& f = m_fields.at(grid_name).at(fname);
+          const auto& id = f->get_header().get_identifier();
+          if (lt==LayoutType::Invalid) {
+          f_layout = id.get_layout();
+          lt = f_layout.type();
+          } else {
+            EKAT_REQUIRE_MSG (lt==id.get_layout().type(),
+                "Error! Found a group to bundle containing fields with different layouts.\n"
+                "       Group name: " + cluster_name + "\n"
+                "       Layout 1: " + e2str(lt) + "\n"
+                "       Layout 2: " + e2str(id.get_layout().type()) + "\n");
+          }
         }
 
-        // Ok, let's remove group *it, and try again
-        // Note: we have to remove the group name from gnames, but we also have to
-        //       remove its list of fields from group_fields
-        auto pos = std::distance(cluster.begin(),it);
-        cluster.erase(std::next(cluster.begin(),pos));
-        groups_fields.erase(std::next(groups_fields.begin(),pos));
-        cluster_ordered_fields = contiguous_superset(groups_fields);
-      }
+        EKAT_REQUIRE_MSG(lt==LayoutType::Scalar2D || lt==LayoutType::Scalar3D,
+            "Error! We can only bundle scalar fields. Found " + e2str(lt) + " fields instead.\n");
 
-      if (cluster_ordered_fields.size()==0) {
-        // We were not able to accommodate all the requests bundling the groups
-        // in this cluster. We have to error out. But first, let's print some
-        // information, so the developers/users can have a shot at fixing this
-        // (e.g., by changing the request for bundling in some Atm Proc).
-        std::cout << "Error! Field manager on grid " << m_grid->name() <<  " was not able to accommodate\n"
-                  << "       the following requests for bundled groups:\n";
+        FieldLayout c_layout = FieldLayout::invalid();
+        if (lt==LayoutType::Scalar2D) {
+          c_layout = grid->get_2d_vector_layout(cluster_ordered_fields.size());
+        } else {
+          c_layout = grid->get_3d_vector_layout(f_layout.tags().back()==LEV,cluster_ordered_fields.size());
+        }
+
+        // The units for the bundled field are nondimensional, cause checking whether
+        // all fields in the bundle have the same units so we can use those is too long and pointless.
+        auto nondim = ekat::units::Units::nondimensional();
+
+        // Allocate cluster field
+        FieldIdentifier c_fid(cluster_name,c_layout,nondim,grid->name());
+        register_field(c_fid);
+        const auto& C = m_fields.at(grid_name).at(c_fid.name());
+
+        // Scan all fields in this cluster, get their alloc props, and make sure
+        // C can accommodate all of them. Also, make sure C can accommodate all
+        // pack sizes of all GroupRequest of groups in this cluster.
+        auto& C_ap = C->get_header().get_alloc_properties();
+        for (const auto& fn : cluster_ordered_fields) {
+          const auto& f = m_fields.at(grid_name).at(fn);
+          C_ap.request_allocation(f->get_header().get_alloc_properties());
+        }
         for (const auto& gn : cluster) {
-          std::cout << "   - " << gn << "\n";
-        }
-        std::cout << "       Consdier modifying the Atm Procs where these groups are requested.\n"
-                  << "       For instance, you may ask for 'Preferred' bundling, rather than 'Required'\n";
-
-        EKAT_ERROR_MSG (" -- ERROR --\n");
-      }
-
-      // Ok, if we got here, it means we can allocate the cluster as a field, and then subview all the groups
-      // Steps:
-      //  - check if there's a group in the cluster containing all the fields. If yes, use that group
-      //    name for the bundled field, otherwise make one up from the names of all groups in the cluster.
-      //  - allocate the cluster field F.
-      //  - loop over the groups in the cluster, and subview F at the proper (contiguous) indices.
-
-      // WARNING: this lines should be removed if we move away from Homme's requirement that
-      //          qv be the first tracer
-      if (qv_must_come_first) {
-        auto qv_it = ekat::find(cluster_ordered_fields,"qv");
-        if (qv_it!=cluster_ordered_fields.end()) {
-          // Check that qv comes first or last (if last, reverse the list). If not, error out.
-          // NOTE: I *think* this should not happen, unless 'tracers' is a subgroup of a bigger group.
-          EKAT_REQUIRE_MSG(qv_it==cluster_ordered_fields.begin() || std::next(qv_it,1)==cluster_ordered_fields.end(),
-              "Error! The water vapor field has to be the first tracer, but it is not.\n");
-
-          if (qv_it!=cluster_ordered_fields.begin()) {
-            // Note: reversing the order of the fields preserves subgroups contiguity
-            cluster_ordered_fields.reverse();
-          }
-
-          // Remove __qv__ from the cluster (if present)
-          auto qv_gr_it = ekat::find(cluster,"__qv__");
-          if (qv_gr_it!=cluster.end()) {
-            cluster.erase(qv_gr_it);
+          for (const auto& req : m_group_requests.at(grid_name).at(gn)) {
+            C_ap.request_allocation(req.pack_size);
           }
         }
-      }
 
-      // Check if there is a group with all the fields. Notice that it is enough to check
-      // if any list in the LOL has the same length as cluster_ordered_fields.
-      // If not, we will set cluster_name = $group1_name | $group2_name | ...
-      // Note: cluster_name will be the name of the field bundling all fields in the cluster's groups
-      std::string cluster_name;
-      for (const auto& gn : cluster) {
-        // Start building cluster_name by "or-ing" all gn's.
-        if (gn==cluster.front()) {
-          cluster_name = gn;
-        } else {
-          cluster_name += " | " + gn;
+        // Allocate
+        C->allocate_view();
+
+        // Note: as of 02/2021, idim should *always* be 1, but we store it just in case,
+        //       to avoid bugs in the future.
+        const auto& C_tags = C->get_header().get_identifier().get_layout().tags();
+        const int idim = std::distance(C_tags.begin(),ekat::find(C_tags,CMP));
+
+        if (ekat::contains(cluster,"__qv__")) {
+          // Erase the 'fake group' we added (to guarantee qv would be first/last in the tracers)
+          m_field_groups.at(grid_name).erase(m_field_groups.at(grid_name).find("__qv__"));
+          cluster.erase(ekat::find(cluster,"__qv__"));
         }
 
-        const auto& fnames = m_field_groups.at(gn)->m_fields_names;
-        if (fnames.size()==cluster_ordered_fields.size()) {
-          // Found a group in the cluster that contains all fields.
-          cluster_name = gn;
-          break;
+        // Create all individual subfields
+        for (const auto& fn : cluster_ordered_fields) {
+          const auto pos = ekat::find(cluster_ordered_fields,fn);
+          const auto idx = std::distance(cluster_ordered_fields.begin(),pos);
+
+          const auto& f = m_fields.at(grid_name).at(fn);
+          const auto& fid = f->get_header().get_identifier();
+          EKAT_REQUIRE_MSG (fid.get_units()!=ekat::units::Units::invalid(),
+              "Error! A field was registered without providing valid units.\n"
+              "  - field id: " + fid.get_id_string() + "\n");
+          auto fi = C->subfield(fn,fid.get_units(),idim,idx);
+
+          // Overwrite existing field with subfield
+          *f = fi;
         }
-      }
 
-      // Figure out the layout of the fields in this cluster,
-      // and make sure they all have the same layout
-      LayoutType lt = LayoutType::Invalid;
-      FieldLayout f_layout = FieldLayout::invalid();
-      for (const auto& fname : cluster_ordered_fields) {
-        const auto& f = m_fields.at(fname);
-        const auto& id = f->get_header().get_identifier();
-        if (lt==LayoutType::Invalid) {
-         f_layout = id.get_layout();
-         lt = f_layout.type();
-        } else {
-          EKAT_REQUIRE_MSG (lt==id.get_layout().type(),
-              "Error! Found a group to bundle containing fields with different layouts.\n"
-              "       Group name: " + cluster_name + "\n"
-              "       Layout 1: " + e2str(lt) + "\n"
-              "       Layout 2: " + e2str(id.get_layout().type()) + "\n");
+        // Now, update the group info of all the field groups in the cluster
+        for (const auto& gn : cluster) {
+          auto& info = *m_field_groups.at(grid_name).at(gn);
+          const auto n = info.size();
+
+          // Find the first field of this group in the ordered cluster names.
+          auto first = std::find_first_of(cluster_ordered_fields.begin(),cluster_ordered_fields.end(),
+                                          info.m_fields_names.begin(),info.m_fields_names.end());
+          auto last = std::next(first,n);
+
+          // Some sanity checks: info.m_fields_names should be a rearrangement of what is
+          // in cluster_odered_fields[first,last)
+          EKAT_REQUIRE_MSG(first!=cluster_ordered_fields.end(),
+              "Error! Could not find any field of this group in the ordered cluster.\n"
+              "       Group name: " + gn + "\n");
+          EKAT_REQUIRE_MSG(std::distance(last,cluster_ordered_fields.end())>=0,
+              "Error! Something went wrong while looking for fields of this group in the ordered cluster.\n"
+              "       Group name: " + gn + "\n");
+          EKAT_REQUIRE_MSG(std::is_permutation(first,last,info.m_fields_names.begin(),info.m_fields_names.end()),
+              "Error! Something went wrong while looking for fields of this group in the ordered cluster.\n"
+              "       Group name: " + gn + "\n");
+
+          // Update the list of fields in the group info, mark it as bundled,
+          // and update the subfield indices too.
+          info.m_fields_names.clear();
+          for (auto it=first; it!=last; ++it) {
+            info.m_fields_names.push_back(*it);
+            info.m_subview_dim = idim;
+            info.m_subview_idx [*it] = std::distance(cluster_ordered_fields.begin(),it);
+          }
+          info.m_bundled = true;
         }
-      }
-
-      EKAT_REQUIRE_MSG(lt==LayoutType::Scalar2D || lt==LayoutType::Scalar3D,
-          "Error! We can only bundle scalar fields. Found " + e2str(lt) + " fields instead.\n");
-
-      FieldLayout c_layout = FieldLayout::invalid();
-      if (lt==LayoutType::Scalar2D) {
-        c_layout = m_grid->get_2d_vector_layout(cluster_ordered_fields.size());
-      } else {
-        c_layout = m_grid->get_3d_vector_layout(f_layout.tags().back()==LEV,cluster_ordered_fields.size());
-      }
-
-      // The units for the bundled field are nondimensional, cause checking whether
-      // all fields in the bundle have the same units so we can use those is too long and pointless.
-      auto nondim = ekat::units::Units::nondimensional();
-
-      // Allocate cluster field
-      FieldIdentifier c_fid(cluster_name,c_layout,nondim,m_grid->name());
-      register_field(c_fid);
-      const auto& C = m_fields.at(c_fid.name());
-
-      // Scan all fields in this cluster, get their alloc props, and make sure
-      // C can accommodate all of them. Also, make sure C can accommodate all
-      // pack sizes of all GroupRequest of groups in this cluster.
-      auto& C_ap = C->get_header().get_alloc_properties();
-      for (const auto& fn : cluster_ordered_fields) {
-        const auto& f = m_fields.at(fn);
-        C_ap.request_allocation(f->get_header().get_alloc_properties());
-      }
-      for (const auto& gn : cluster) {
-        for (const auto& req : m_group_requests.at(gn)) {
-          C_ap.request_allocation(req.pack_size);
-        }
-      }
-
-      // Allocate
-      C->allocate_view();
-
-      // Note: as of 02/2021, idim should *always* be 1, but we store it just in case,
-      //       to avoid bugs in the future.
-      const auto& C_tags = C->get_header().get_identifier().get_layout().tags();
-      const int idim = std::distance(C_tags.begin(),ekat::find(C_tags,CMP));
-
-      if (ekat::contains(cluster,"__qv__")) {
-        // Erase the 'fake group' we added (to guarantee qv would be first/last in the tracers)
-        m_field_groups.erase(m_field_groups.find("__qv__"));
-        cluster.erase(ekat::find(cluster,"__qv__"));
-      }
-
-      // Create all individual subfields
-      for (const auto& fn : cluster_ordered_fields) {
-        const auto pos = ekat::find(cluster_ordered_fields,fn);
-        const auto idx = std::distance(cluster_ordered_fields.begin(),pos);
-
-        const auto& f = m_fields.at(fn);
-        const auto& fid = f->get_header().get_identifier();
-        EKAT_REQUIRE_MSG (fid.get_units()!=ekat::units::Units::invalid(),
-            "Error! A field was registered without providing valid units.\n"
-            "  - field id: " + fid.get_id_string() + "\n");
-        auto fi = C->subfield(fn,fid.get_units(),idim,idx);
-
-        // Overwrite existing field with subfield
-        *f = fi;
-      }
-
-      // Now, update the group info of all the field groups in the cluster
-      for (const auto& gn : cluster) {
-        auto& info = *m_field_groups.at(gn);
-        const auto n = info.size();
-
-        // Find the first field of this group in the ordered cluster names.
-        auto first = std::find_first_of(cluster_ordered_fields.begin(),cluster_ordered_fields.end(),
-                                        info.m_fields_names.begin(),info.m_fields_names.end());
-        auto last = std::next(first,n);
-
-        // Some sanity checks: info.m_fields_names should be a rearrangement of what is
-        // in cluster_odered_fields[first,last)
-        EKAT_REQUIRE_MSG(first!=cluster_ordered_fields.end(),
-            "Error! Could not find any field of this group in the ordered cluster.\n"
-            "       Group name: " + gn + "\n");
-        EKAT_REQUIRE_MSG(std::distance(last,cluster_ordered_fields.end())>=0,
-            "Error! Something went wrong while looking for fields of this group in the ordered cluster.\n"
-            "       Group name: " + gn + "\n");
-        EKAT_REQUIRE_MSG(std::is_permutation(first,last,info.m_fields_names.begin(),info.m_fields_names.end()),
-            "Error! Something went wrong while looking for fields of this group in the ordered cluster.\n"
-            "       Group name: " + gn + "\n");
-
-        // Update the list of fields in the group info, mark it as bundled,
-        // and update the subfield indices too.
-        info.m_fields_names.clear();
-        for (auto it=first; it!=last; ++it) {
-          info.m_fields_names.push_back(*it);
-          info.m_subview_dim = idim;
-          info.m_subview_idx [*it] = std::distance(cluster_ordered_fields.begin(),it);
-        }
-        info.m_bundled = true;
       }
     }
-  }
 
-  for (auto& it : m_fields) {
-    if (it.second->is_allocated()) {
-      // If the field has been already allocated, then it was in a bunlded group, so skip it.
-      continue;
+    for (auto& it : m_fields.at(grid_name)) {
+      if (it.second->is_allocated()) {
+        // If the field has been already allocated, then it was in a bunlded group, so skip it.
+        continue;
+      }
+      // A brand new field. Allocate it
+      it.second->allocate_view();
     }
-    // A brand new field. Allocate it
-    it.second->allocate_view();
-  }
 
-  for (const auto& it : m_field_groups) {
-    // Get fields in this group
-    auto group_info = it.second;
-    const auto& fnames = group_info->m_fields_names;
-    for (const auto& fn : fnames) {
-      // Update the field tracking
-      m_fields.at(fn)->get_header().get_tracking().add_to_group(group_info);
+    for (const auto& it : m_field_groups.at(grid_name)) {
+      // Get fields in this group
+      auto group_info = it.second;
+      const auto& fnames = group_info->m_fields_names;
+      for (const auto& fn : fnames) {
+        // Update the field tracking
+        m_fields.at(grid_name).at(fn)->get_header().get_tracking().add_to_group(group_info);
+      }
     }
-  }
 
-  // Prohibit further registration of fields
-  m_repo_state = RepoState::Closed;
+    // Prohibit further registration of fields to this repo
+    m_repo_state[grid_name] = RepoState::Closed;
+  }
 }
 
 void FieldManager::clean_up() {
+  // Call clean_up() on every grid
+  for (auto gname : m_grids_mgr->get_grid_names()) {
+    clean_up(gname);
+  }
+}
+
+void FieldManager::clean_up(const std::string& grid_name) {
   // Clear the maps
-  m_fields.clear();
-  m_field_groups.clear();
+  m_fields.at(grid_name).clear();
+  m_field_groups.at(grid_name).clear();
 
   // Reset repo state
-  m_repo_state = RepoState::Clean;
+  m_repo_state[grid_name] = RepoState::Clean;
 }
 
 void FieldManager::add_field (const Field& f) {
+  const auto& grid_name = f.get_header().get_identifier().get_grid_name();
+
   // This method has a few restrictions on the input field.
-  EKAT_REQUIRE_MSG (m_repo_state==RepoState::Closed or m_repo_state==RepoState::Clean,
+  EKAT_REQUIRE_MSG (m_repo_state.at(grid_name)==RepoState::Closed or m_repo_state.at(grid_name)==RepoState::Clean,
       "Error! The method 'add_field' can only be called on a closed repo.\n");
   EKAT_REQUIRE_MSG (f.is_allocated(),
       "Error! The method 'add_field' requires the input field to be already allocated.\n");
-  EKAT_REQUIRE_MSG (m_grid->is_valid_layout(f.get_header().get_identifier().get_layout()),
+  EKAT_REQUIRE_MSG (m_grids_mgr->get_grid(grid_name)->is_valid_layout(f.get_header().get_identifier().get_layout()),
       "Error! Input field to 'add_field' has a layout not compatible with the stored grid.\n"
       "  - input field name : " + f.name() + "\n"
-      "  - field manager grid: " + m_grid->name() + "\n"
+      "  - field manager grid: " + grid_name + "\n"
       "  - input field layout:   " + f.get_header().get_identifier().get_layout().to_string() + "\n");
-  EKAT_REQUIRE_MSG (not has_field(f.name()),
+  EKAT_REQUIRE_MSG (not has_field(f.name(), grid_name),
       "Error! The method 'add_field' requires the input field to not be already existing.\n"
       "  - field name: " + f.get_header().get_identifier().name() + "\n");
   EKAT_REQUIRE_MSG (f.get_header().get_tracking().get_groups_info().size()==0 ||
@@ -659,27 +701,28 @@ void FieldManager::add_field (const Field& f) {
       "when we allocated the fields for one of those groups.\n");
 
   // All good, add the field to the repo
-  m_fields[f.get_header().get_identifier().name()] = std::make_shared<Field>(f);
+  m_fields[grid_name][f.get_header().get_identifier().name()] = std::make_shared<Field>(f);
 
-  m_repo_state = RepoState::Closed;
+  m_repo_state[grid_name] = RepoState::Closed;
 }
 
 std::shared_ptr<Field>
 FieldManager::get_field_ptr (const identifier_type& id) const {
-  auto it = m_fields.find(id.name());
-  if (it!=m_fields.end() && it->second->get_header().get_identifier()==id) {
+  const auto grid_name = id.get_grid_name();
+  auto it = m_fields.at(grid_name).find(id.name());
+  if (it!=m_fields.at(grid_name).end() && it->second->get_header().get_identifier()==id) {
     return it->second;
   }
   return nullptr;
 }
 
 std::shared_ptr<Field>
-FieldManager::get_field_ptr (const std::string& name) const {
-  auto it = m_fields.find(name);
-  return it==m_fields.end() ? nullptr : it->second;
+FieldManager::get_field_ptr (const std::string& name, const std::string& grid_name) const {
+  auto it = m_fields.at(grid_name).find(name);
+  return it==m_fields.at(grid_name).end() ? nullptr : it->second;
 }
 
-void FieldManager::pre_process_group_requests () {
+void FieldManager::pre_process_group_requests (const std::string& grid_name) {
   // GroupRequests that are formulated in terms of another group (i.e., where
   // req.imported==true), need a preprocessing step.
   // This step needs to do two things: 1) make sure the group contains all
@@ -693,12 +736,12 @@ void FieldManager::pre_process_group_requests () {
 
   // A list storing the order in which we process the requests.
   std::list<std::string> ordered_groups;
-  while (ordered_groups.size()<m_group_requests.size()) {
+  while (ordered_groups.size()<m_group_requests[grid_name].size()) {
     // If this iteration of the while loop does not increase the size of ordered_groups,
     // then there are circular deps, and we need to error out.
     size_t curr_size = ordered_groups.size();
 
-    for (const auto& greqs : m_group_requests) {
+    for (const auto& greqs : m_group_requests[grid_name]) {
       if (ekat::contains(ordered_groups,greqs.first)) {
         // We already processed this group
         continue;
@@ -730,7 +773,7 @@ void FieldManager::pre_process_group_requests () {
 
   // Now we have an order in which we can process group requests. Go in order.
   for (const auto& gname : ordered_groups) {
-    const auto& reqs = m_group_requests.at(gname);
+    const auto& reqs = m_group_requests[grid_name].at(gname);
 
     // Check consistency.
     for (const auto& req : reqs) {
