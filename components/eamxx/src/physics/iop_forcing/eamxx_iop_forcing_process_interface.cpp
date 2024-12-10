@@ -445,10 +445,6 @@ void IOPForcing::run_impl (const double dt)
   // Nudge the domain based on the domain mean
   // and observed quantities of T, Q, u, and v
   if (iop_nudge_tq or iop_nudge_uv) {
-    get_field_out("qv").deep_copy<Real>(1);
-    get_field_out("T_mid").deep_copy<Real>(1);
-    get_field_out("horiz_winds").deep_copy<Real>(1);
-
     // Compute domain mean of qv, T_mid, u, and v
     view_1d<Real> qv_mean, t_mean;
     view_2d<Real> horiz_winds_mean;
@@ -467,7 +463,7 @@ void IOPForcing::run_impl (const double dt)
       horiz_winds_mean = m_helper_fields.at("horiz_winds_mean").get_view<Real**>();
     }
 
-    {
+    if (m_comm.am_i_root()) {
       m_helper_fields.at("qv_mean").sync_to_host();
       m_helper_fields.at("t_mean").sync_to_host();
       m_helper_fields.at("horiz_winds_mean").sync_to_host();
