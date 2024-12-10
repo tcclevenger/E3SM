@@ -447,6 +447,10 @@ void IOPForcing::run_impl (const double dt)
     const auto u_mean_h  = Kokkos::create_mirror_view(u_mean);
     const auto v_mean_h  = Kokkos::create_mirror_view(v_mean);
 
+    get_field_out("qv").deep_copy<Real>(1);
+    get_field_out("T_mid").deep_copy<Real>(1);
+    get_field_out("horiz_winds").deep_copy<Real>(1);
+
     const auto num_global_cols = m_grid->get_num_global_dofs();
     for (int k=0; k<m_num_levs; ++k) {
       if (iop_nudge_tq){
@@ -486,6 +490,13 @@ void IOPForcing::run_impl (const double dt)
     Kokkos::deep_copy(t_mean,  t_mean_h);
     Kokkos::deep_copy(u_mean,  u_mean_h);
     Kokkos::deep_copy(v_mean,  v_mean_h);
+
+    {
+      for (int k=0; k<m_num_levs; ++k) {
+        printf("qv(%d) = %f  t(%d) = %f  u(%d) = %f  v(%d) = %f\n", 
+               k, qv_mean_h(k), k, t_mean_h(k), k, u_mean_h(k), k, v_mean_h(k));
+      }
+    }
 
     // Apply relaxation
     const auto rtau = std::max(dt, iop_nudge_tscale);
