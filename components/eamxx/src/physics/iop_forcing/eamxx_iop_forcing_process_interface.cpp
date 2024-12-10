@@ -493,7 +493,6 @@ void IOPForcing::run_impl (const double dt)
                k, qv_mean_h(k), k, t_mean_h(k), k, u_mean_h(k), k, v_mean_h(k));
       }
     }
-    m_comm.barrier(); assert(false);
 
     // Apply relaxation
     const auto rtau = std::max(dt, iop_nudge_tscale);
