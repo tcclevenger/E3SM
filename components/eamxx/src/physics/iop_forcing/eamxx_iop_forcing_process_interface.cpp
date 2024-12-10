@@ -445,6 +445,10 @@ void IOPForcing::run_impl (const double dt)
   // Nudge the domain based on the domain mean
   // and observed quantities of T, Q, u, and v
   if (iop_nudge_tq or iop_nudge_uv) {
+    get_field_out("qv").deep_copy<Real>(1);
+    get_field_out("T_mid").deep_copy<Real>(1);
+    get_field_out("horiz_winds").deep_copy<Real>(1);
+
     // Compute domain mean of qv, T_mid, u, and v
     view_1d<Real> qv_mean, t_mean;
     view_2d<Real> horiz_winds_mean;
@@ -461,6 +465,21 @@ void IOPForcing::run_impl (const double dt)
       horiz_contraction<Real>(m_helper_fields.at("horiz_winds_mean"), get_field_out("horiz_winds"), 
                               m_helper_fields.at("horiz_mean_weights"), &m_comm);
       horiz_winds_mean = m_helper_fields.at("horiz_winds_mean").get_view<Real**>();
+    }
+
+    {
+      m_helper_fields.at("qv_mean").sync_to_host();
+      m_helper_fields.at("t_mean").sync_to_host();
+      m_helper_fields.at("horiz_winds_mean").sync_to_host();
+
+      auto qv = m_helper_fields.at("qv_mean").get_view<Real*, Host>();
+      auto t = m_helper_fields.at("t_mean").get_view<Real*, Host>();
+      auto winds = m_helper_fields.at("horiz_winds_mean").get_view<Real**, Host>();
+
+      for (int k=0; k<m_num_levs; ++k) {
+        printf("qv(%d) = %f  t(%d) = %f  u(%d) = %f  v(%d) = %f\n", 
+               k, qv(k), k, t(k), k, winds(0, k), k, winds(1, k));
+      }
     }
 
     // Apply relaxation
