@@ -632,6 +632,7 @@ void FieldManager::registration_ends ()
           info.m_fields_names.push_back(*it);
           info.m_subview_dim = idim;
           info.m_subview_idx [*it] = std::distance(cluster_ordered_fields.begin(),it);
+          printf("%s-%s: fname=%s, subview_idx=%d\n", info.m_group_name.c_str(), m_grid->name().c_str(), it->c_str(), info.m_subview_idx [*it]);
         }
         info.m_bundled = true;
       }

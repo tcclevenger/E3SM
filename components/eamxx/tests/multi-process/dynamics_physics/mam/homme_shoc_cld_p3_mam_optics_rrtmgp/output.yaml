@@ -3,7 +3,7 @@
 filename_prefix: homme_shoc_cld_p3_mam_optics_rrtmgp
 Averaging Type: Instant
 Fields:
-  Physics GLL:
+  Physics PG2:
     Field Names:
       # HOMME
       - ps
