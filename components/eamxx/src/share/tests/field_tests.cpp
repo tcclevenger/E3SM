@@ -671,12 +671,6 @@ TEST_CASE("multiple_bundles") {
 
   GroupRequest g1_req ("group1",grid_name,Bundling::Required);
   GroupRequest g2_req ("group2",grid_name,Bundling::Required);
-  // Include all group2 in group3
-  GroupRequest g3_req ("group3",grid_name,4,Bundling::Required,DerivationType::Superset,g2_req.name,g2_req.grid);
-  // Create group4 as a copy of group2
-  GroupRequest g4_req ("group4",grid_name,4,Bundling::Required,DerivationType::Copy,g2_req.name,g2_req.grid);
-  // Extend group5 by adding all fields in group1 *except* 'c' and 'd'.
-  GroupRequest g5_req ("group5",grid_name,4,Bundling::Preferred,DerivationType::Subset,g1_req.name,g1_req.grid,SL{"c","d"});
 
   // The above group specs should give the following groups:
   // g1: [a,b,c,d,e,f]
@@ -704,23 +698,16 @@ TEST_CASE("multiple_bundles") {
   // Register groups
   field_mgr.register_group(g1_req);
   field_mgr.register_group(g2_req);
-  field_mgr.register_group(g3_req);
-  field_mgr.register_group(g4_req);
-  field_mgr.register_group(g5_req);
 
   field_mgr.registration_ends();
 
   auto g1 = field_mgr.get_field_group(g1_req.name);
   auto g2 = field_mgr.get_field_group(g2_req.name);
-  auto g3 = field_mgr.get_field_group(g3_req.name);
-  auto g4 = field_mgr.get_field_group(g4_req.name);
   auto g5 = field_mgr.get_field_group(g5_req.name);
 
   // First 4 groups should be bundled
   REQUIRE (g1.m_info->m_bundled);
   REQUIRE (g2.m_info->m_bundled);
-  REQUIRE (g3.m_info->m_bundled);
-  REQUIRE (g4.m_info->m_bundled);
   REQUIRE (not g5.m_info->m_bundled);
 
   // Check that the order of fields in g1 is the expected one

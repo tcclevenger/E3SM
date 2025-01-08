@@ -169,44 +169,21 @@ get_field_group (const std::string& group_name) const
   // Set the info in the group
   group.m_info = m_field_groups.at(group_name);
 
-  // IMPORTANT: this group might have been created as a "Copy" (see field_request.hpp)
-  //            of another group. In this case, we only allocate the bundled group,
-  //            and we don't create individual subfields. Users can still extract
-  //            subfields on the fly, if need be, by using the names/idx data in m_info.
-  auto it = m_group_requests.find(group_name);
-  bool allocate_subfields = true;
-  if (it!=m_group_requests.end()) {
-    for (const auto& req : it->second) {
-      if (req.derived_type==DerivationType::Copy) {
-        allocate_subfields = false;
-        break;
-      }
-    }
-  }
-
-  if (allocate_subfields) {
-    // Find all the fields and set them in the group
-    for (const auto& fname : group.m_info->m_fields_names) {
-      auto f = get_field_ptr(fname);
-      group.m_fields[fname] = f;
-    }
+  // Find all the fields and set them in the group
+  for (const auto& fname : group.m_info->m_fields_names) {
+    auto f = get_field_ptr(fname);
+    group.m_fields[fname] = f;
   }
 
   // Fetch the bundle field (if bundled)
   if (group.m_info->m_bundled) {
-    if (allocate_subfields) {
-      // We can get the parent from any of the fields in the group.
-      auto p = group.m_fields.begin()->second->get_header().get_parent().lock();
-      EKAT_REQUIRE_MSG(p!=nullptr,
-          "Error! A field belonging to a bundled field group is missing its 'parent'.\n");
+    // We can get the parent from any of the fields in the group.
+    auto p = group.m_fields.begin()->second->get_header().get_parent().lock();
+    EKAT_REQUIRE_MSG(p!=nullptr,
+        "Error! A field belonging to a bundled field group is missing its 'parent'.\n");
 
-      const auto& p_id = p->get_identifier();
-      group.m_bundle = get_field_ptr(p_id);
-    } else {
-      // This group was copied, and therefore we know we created the bundled field with
-      // the same name as the group itself. So simply fetch that field
-      group.m_bundle = get_field_ptr(group_name);
-    }
+    const auto& p_id = p->get_identifier();
+    group.m_bundle = get_field_ptr(p_id);
   }
 
   return group;
@@ -307,23 +284,17 @@ void FieldManager::registration_ends ()
   pre_process_group_requests ();
 
   // Gather a list of groups to be bundled
-  // NOTE: copied groups are always created bundled, but in a second phase,
-  //       without creating individual subfields.
-  std::list<std::string> groups_to_bundle, copied_groups;
+  std::list<std::string> groups_to_bundle;
   for (const auto& greqs : m_group_requests) {
     for (const auto& r : greqs.second) {
-      if (r.derived_type!=DerivationType::Copy && r.bundling!=Bundling::NotNeeded) {
+      if (r.bundling!=Bundling::NotNeeded) {
         // There's at least one request for this group to be bunlded.
         groups_to_bundle.push_back(greqs.first);
-      } else if (r.derived_type==DerivationType::Copy) {
-        copied_groups.push_back(greqs.first);
       }
     }
   }
   ::scream::sort(groups_to_bundle);
-  ::scream::sort(copied_groups);
   groups_to_bundle.unique();
-  copied_groups.unique();
 
   // Homme currently wants qv to be the first tracer. We should be able to
   // modify Homme, to use something like qv_idx. However, that requires
@@ -633,62 +604,6 @@ void FieldManager::registration_ends ()
     }
   }
 
-  // Now that all bundled fields have been taken care of, we can
-  //  - create copied groups (as a bundled field) and update their info
-  //  - allocate remaining fields (not part of a bundled field)
-  //  - update the tracking of each field, by adding the group info of all
-  //    the groups the field belongs to.
-  for (const auto& gname : copied_groups) {
-    using namespace ShortFieldTagsNames;
-    auto& info  = *m_field_groups.at(gname);
-    const int   size  = info.size();
-
-    // The units for the bundled field are nondimensional, cause checking whether
-    // all fields in the bundle have the same units so we can use those is too long and pointless.
-    auto nondim = ekat::units::Units::nondimensional();
-
-    // Take any of the fields in the group to be copied, and determine
-    // whether they are 2d or 3d.
-    auto f1 = m_fields.at(info.m_fields_names.front());
-    auto f1_layout = f1->get_header().get_identifier().get_layout();
-    auto lt = f1_layout.type();
-    FieldLayout g_layout = FieldLayout::invalid();
-    if (lt==LayoutType::Scalar2D) {
-      g_layout = m_grid->get_2d_vector_layout(size);
-    } else {
-      bool mid = f1_layout.tags().back()==LEV;
-      g_layout = m_grid->get_3d_vector_layout(mid,size,e2str(CMP));
-    }
-
-    FieldIdentifier g_fid(gname,g_layout,nondim,m_grid->name());
-    register_field(g_fid);
-    const auto& G = m_fields.at(g_fid.name());
-
-    // Loop over the requests, and set the alloc props
-    auto& G_ap = G->get_header().get_alloc_properties();
-    for (const auto& req : m_group_requests.at(gname)) {
-      G_ap.request_allocation(req.pack_size);
-    }
-    G->allocate_view();
-
-    // Now, update the group info of the copied group, by setting the
-    // correct subview_idx, in case the user wants to extract the
-    // individual fields as Field structs.
-    // NOTE: individual fields are *not* registered in the repo,
-    //       but the user *can* create subfields, if needed.
-    //       E.g., user might create subfields for remapping purposes.
-    // Note: as of 08/2021, idim should *always* be 1, but we store it just in case,
-    //       to avoid bugs in the future.
-    const auto& G_tags = g_layout.tags();
-    const int idim = std::distance(G_tags.begin(),ekat::find(G_tags,CMP));
-    for (int i=0; i<size; ++i) {
-      const auto& fn = *std::next(info.m_fields_names.begin(),i);
-      info.m_subview_dim = idim;
-      info.m_subview_idx [fn] = i;
-    }
-    info.m_bundled = true;
-  }
-
   for (auto& it : m_fields) {
     if (it.second->is_allocated()) {
       // If the field has been already allocated, then it was in a bunlded group, so skip it.
@@ -699,11 +614,6 @@ void FieldManager::registration_ends ()
   }
 
   for (const auto& it : m_field_groups) {
-    if (ekat::contains(copied_groups,it.first)) {
-      // Copied groups use the same field names as the group they copied,
-      // but those fields do not belong to the copy group.
-      continue;
-    }
     // Get fields in this group
     auto group_info = it.second;
     const auto& fnames = group_info->m_fields_names;
@@ -771,19 +681,10 @@ FieldManager::get_field_ptr (const std::string& name) const {
 
 void FieldManager::pre_process_group_requests () {
   // GroupRequests that are formulated in terms of another group (i.e., where
-  // req.derived_type!=DerivationType::None), need a preprocessing step.
+  // req.imported==true), need a preprocessing step.
   // This step needs to do two things: 1) make sure the group contains all
   // the fields it needs, and 2) make sure the different group requests are
-  // consistent and valid. Point 1 is necessary, since nobody may have added
-  // any field to the group. E.g., if group B is a subset of group A={f1,f2,f3}
-  // with f1 removed, we need to make sure B={f2,f3} (might be nobody registered
-  // f2 and f3 as part of B). Point 2 is to make sure we don't ask for things
-  // that are either too complicated to handle (and likely never going to be needed)
-  // or inconsistent. E.g., if group A is requested as a "Copy" of group B,
-  // and group B is requested as a "Copy" of group A (whish is copying which?).
-  // Note: it is allowed for requests to be "chained". E.g., group A can be
-  // listed as subset of B={f1,f2,f3,f4}, with f4 removed, and group B can be
-  // listed as subset of A, with f2 removed.
+  // consistent and valid.
   // Since requests can be "chained" (in the sense explained above), we must process
   // them in the "right" order. That is, if we have a req for group A that
   // depends on group B, and there are reqs for group B that depend on other groups,
@@ -807,7 +708,7 @@ void FieldManager::pre_process_group_requests () {
       // it must only have deps on groups already added to ordered_groups.
       bool can_process_this_group = true;
       for (const auto& req : greqs.second) {
-        if (req.derived_type!=DerivationType::None &&
+        if (req.imported &&
             not ekat::contains(ordered_groups,req.src_name)) {
           can_process_this_group = false;
           break;
@@ -831,132 +732,26 @@ void FieldManager::pre_process_group_requests () {
   for (const auto& gname : ordered_groups) {
     const auto& reqs = m_group_requests.at(gname);
 
-    // First, we add any field needed to the corresponding FieldGroupInfo
-    // Note: we only need to parse Superset, Subset, and Copy requests
-    auto& info = m_field_groups.at(gname);
-    for (const auto& r : reqs) {
-      switch(r.derived_type) {
-        case DerivationType::None: // [[fallthrough]] // c++17 keyword
-        case DerivationType::Import:
-          break;
-        case DerivationType::Copy:  // [[fallthrough]] // c++17 keyword
-        case DerivationType::Superset:
-          for (const auto& fname : m_field_groups.at(r.src_name)->m_fields_names) {
-            // Since we don't want to sort field names lists, adding duplciates
-            // would make removing them hard, so might as well check before adding names.
-            if (not ekat::contains(info->m_fields_names,fname)) {
-              info->m_fields_names.push_back(fname);
-            }
-          }
-          break;
-        case DerivationType::Subset:
-          for (const auto& fname : m_field_groups.at(r.src_name)->m_fields_names) {
-            // Since we don't want to sort field names lists, adding duplciates
-            // would make removing them hard, so might as well check before adding names.
-            if (not ekat::contains(info->m_fields_names,fname) &&
-                not ekat::contains(r.exclude,fname)) {
-              info->m_fields_names.push_back(fname);
-            }
-          }
-          break;
-      }
-    }
-
-    // Now that all groups contain all fields, we can check consistency.
+    // Check consistency.
     for (const auto& req : reqs) {
       // Depending on the derivation type (if any), do different checks
-      switch (req.derived_type) {
-        case DerivationType::None:
-          // Nothing to do for this request.
-          break;
-        case DerivationType::Import:
-          // An imported group cannot depend on other groups. That is, we don't allow
-          // to do something like G1 = import(G2,from_grid_blah) + G3.
-          // We allow, however, to have multiple 'Import' requests, simply with different
-          // pack sizes or bundling requests
-          for (const auto& r : reqs) {
-            if (r.derived_type!=DerivationType::None) {
-              EKAT_REQUIRE_MSG (r.derived_type==DerivationType::Import,
-                  "Error! An Impor request cannot be mixed with non-Import requests.\n"
-                  "  group name: " + req.name + "\n"
-                  "  second req type: " + e2str(req.derived_type) + "\n");
-              EKAT_REQUIRE_MSG (r.src_name==req.src_name &&
-                                r.src_grid==req.src_grid,
-                  "Error! An Impor request cannot be mixed with other Import requests\n"
-                  "       of different groups or from different grids.\n"
-                  "  group name: " + req.name + "\n"
-                  "  current req source group: " + req.src_name + "\n"
-                  "  current req source grid: " + req.src_grid + "\n"
-                  "  second req source group: " + r.src_name + "\n"
-                  "  second req source grid: " + r.src_grid + "\n");
-            }
+      if (req.imported) {
+        // An imported group cannot depend on other groups. That is, we don't allow
+        // to do something like G1 = import(G2,from_grid_blah) + G3.
+        // We allow, however, to have multiple 'Import' requests, simply with different
+        // pack sizes or bundling requests
+        for (const auto& r : reqs) {
+          if (r.imported) {
+            EKAT_REQUIRE_MSG (r.src_name==req.src_name &&
+                              r.src_grid==req.src_grid,
+                "Error! An Import request cannot be mixed with other Import requests\n"
+                "       of different groups or from different grids.\n"
+                "  group name: " + req.name + "\n"
+                "  current req source group: " + req.src_name + "\n"
+                "  current req source grid: " + req.src_grid + "\n"
+                "  second req source group: " + r.src_name + "\n"
+                "  second req source grid: " + r.src_grid + "\n");
           }
-
-          break;
-        case DerivationType::Copy:
-          // We can only copy a group from this grid
-          EKAT_REQUIRE_MSG (req.src_grid==m_grid->name(),
-              "Error! Use 'Copy' group requests to copy a group from the same grid.\n");
-          // Make sure we're not mixing 'Copy' with other requests types other than Copy or None
-          for (const auto& r : reqs) {
-            if (r.derived_type!=DerivationType::None) {
-              EKAT_REQUIRE_MSG (r.derived_type==DerivationType::Copy,
-                  "Error! A Copy request cannot be mixed with non-Copy requests.\n"
-                  "  group name: " + req.name + "\n"
-                  "  second req type: " + e2str(req.derived_type) + "\n");
-              EKAT_REQUIRE_MSG (r.src_name==req.src_name,
-                  "Error! A Copy request cannot be mixed with other Copy requests of different groups.\n"
-                  "  group name: " + req.name + "\n"
-                  "  current req source group: " + req.src_name + "\n"
-                  "  second req source group: " + r.src_name + "\n");
-            }
-          }
-
-          break;
-        case DerivationType::Subset:
-        {
-          // Say group A is a subset of B={f1,f2,f3}, with f2 removed. If someone registered
-          // field f2 as part of A, then we have an inconsistency. We also have an inconsistency
-          // if someone asked for A to be a superset of C={f2,f3}, since f2 was supposed to be removed.
-          const auto& fnames = m_field_groups.at(gname)->m_fields_names;
-          for (const auto& excl : req.exclude) {
-            EKAT_REQUIRE_MSG (not ekat::contains(fnames,excl),
-                "Error! Found a request for group A to be a subset of group B,\n"
-                "       but one of the excluded fields was explicitly (via register_field)\n"
-                "       or implicitly (via another group request) added to group A.\n"
-                "  current group (A): " + gname + "\n"
-                "  superset group (B): " + req.src_name + "\n"
-                "  field name: " + excl + "\n");
-          }
-          // Also check that all fields of this group are in the source group
-          const auto& rel_fnames = m_field_groups.at(req.src_name)->m_fields_names;
-          for (const auto& f : fnames) {
-            EKAT_REQUIRE_MSG (ekat::contains(rel_fnames,f),
-                "Error! Found a request for group A to be a subset of group B,\n"
-                "       but it contains a field not in the group B.\n"
-                "       Most likely reason: the was also a request for group A\n"
-                "       to be a superset of group C, which was not a subset of B\n"
-                "  current group (A): " + f + "\n"
-                "  superset group (B): " + req.src_name + "\n"
-                "  field name: " + f + "\n");
-          }
-          break;
-        }
-        case DerivationType::Superset:
-        {
-          const auto& fnames = m_field_groups.at(gname)->m_fields_names;
-          const auto& rel_fnames = m_field_groups.at(req.src_name)->m_fields_names;
-          for (const auto& f : rel_fnames) {
-            EKAT_REQUIRE_MSG (ekat::contains(fnames,f),
-                "Error! Found a request for group A to be a superset of group B,\n"
-                "       but group B contains a field not in group A.\n"
-                "       Most likely reason: the was also a request for group A\n"
-                "       to be a subset of group C, which was not a superset of B\n"
-                "  current group (A): " + f + "\n"
-                "  subset group (B): " + req.src_name + "\n"
-                "  field name: " + f + "\n");
-          }
-          break;
         }
       }
     }

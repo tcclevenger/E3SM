@@ -556,7 +556,7 @@ void AtmosphereDriver::create_fields()
   // Helper lambda to reduce code duplication
   auto process_imported_groups = [&](const std::set<GroupRequest>& group_requests) {
     for (auto req : group_requests) {
-      if (req.derived_type==DerivationType::Import) {
+      if (req.imported) {
         EKAT_REQUIRE_MSG (req.grid!=req.src_grid,
             "Error! A group request with 'Import' derivation type is meant to import\n"
             "       a group of fields from a grid to another. Found same grid name instead.\n"
@@ -596,8 +596,8 @@ void AtmosphereDriver::create_fields()
 
         // Now that the fields have been imported on this grid's GM,
         // this group request is a "normal" group request, and we can
-        // reset the derivation type to "None"
-        req.derived_type=DerivationType::None;
+        // reset the imported bool to false.
+        req.imported = false;
       }
 
       m_field_mgrs.at(req.grid)->register_group(req);
