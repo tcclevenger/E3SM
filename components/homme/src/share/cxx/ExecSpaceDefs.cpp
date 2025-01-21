@@ -191,7 +191,7 @@ team_num_threads_vectors (const int num_parallel_iterations,
 #ifdef KOKKOS_ENABLE_CUDA
   const int num_warps_device =
     Kokkos::Cuda().impl_internal_space_instance()->m_deviceProp.multiProcessorCount*
-    Kokkos::Cuda().impl_internal_space_instance()->m_deviceProp.maxBlocksPerMultiprocessor;
+    Kokkos::Cuda().impl_internal_space_instance()->m_deviceProp.maxBlocksPerMultiProcessor;
   const int num_threads_warp = Kokkos::Impl::CudaTraits::WarpSize;
 #elif defined(KOKKOS_ENABLE_HIP)
   // Use 64 wavefronts per CU and 120 CUs.
