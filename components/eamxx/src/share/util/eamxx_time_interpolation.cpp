@@ -167,7 +167,7 @@ void TimeInterpolation::initialize_data_from_files()
   ekat::ParameterList input_params;
   input_params.set("Field Names",m_field_names);
   input_params.set("Filename",triplet_curr.filename);
-  m_file_data_atm_input = std::make_shared<AtmosphereInput>(input_params,m_grid_name,m_fm_time1);
+  m_file_data_atm_input = std::make_shared<AtmosphereInput>(input_params,m_fm_time1,m_grid_name);
   m_file_data_atm_input->set_logger(m_logger);
   // Assign the mask value gathered from the FillValue found in the source file.
   // TODO: Should we make it possible to check if FillValue is in the metadata and only assign mask_value if it is?
@@ -354,7 +354,7 @@ void TimeInterpolation::read_data()
     ekat::ParameterList input_params;
     input_params.set("Field Names",m_field_names);
     input_params.set("Filename",triplet_curr.filename);
-    m_file_data_atm_input = std::make_shared<AtmosphereInput>(input_params,m_grid_name,m_fm_time1);
+    m_file_data_atm_input = std::make_shared<AtmosphereInput>(input_params,m_fm_time1,m_grid_name);
     m_file_data_atm_input->set_logger(m_logger);
     // Also determine the FillValue, if used
     // TODO: Should we make it possible to check if FillValue is in the metadata and only assign mask_value if it is?

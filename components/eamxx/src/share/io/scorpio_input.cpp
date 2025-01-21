@@ -12,13 +12,13 @@ namespace scream
 
 AtmosphereInput::
 AtmosphereInput (const ekat::ParameterList& params,
-                 const std::string& grid_name,
-                 const std::shared_ptr<const fm_type>& field_mgr)
+                 const std::shared_ptr<const fm_type>& field_mgr,
+                 const std::string& grid_name)
 {
   // Set io grid to the grid in FM associated with input grid_name
   set_grid(field_mgr->get_grids_manager()->get_grid(grid_name));
 
-  init(params,grid_name,field_mgr);
+  init(params,field_mgr, grid_name);
 }
 
 AtmosphereInput::
@@ -53,7 +53,7 @@ AtmosphereInput (const std::string& filename,
     fm->add_field(f);
     names.push_back(f.name());
   }
-  init(params,grid->name(),fm);
+  init(params,fm,grid->name());
 }
 
 AtmosphereInput::
@@ -69,8 +69,8 @@ AtmosphereInput::
 
 void AtmosphereInput::
 init (const ekat::ParameterList& params,
-      const std::string& grid_name,
-      const std::shared_ptr<const fm_type>& field_mgr)
+      const std::shared_ptr<const fm_type>& field_mgr,
+      const std::string& grid_name)
 {
   EKAT_REQUIRE_MSG (not m_inited_with_views,
       "Error! Input class was already inited (with user-provided views).\n");
@@ -140,7 +140,7 @@ set_field_manager (const std::shared_ptr<const fm_type>& field_mgr)
 
   // If resetting a field manager we want to check that the layouts of all fields are the same.
   if (m_field_mgr) {
-    for (auto felem : m_field_mgr->get_repo().at(grid_name)) {
+    for (auto felem : m_field_mgr->get_repo(grid_name)) {
       auto name = felem.first;
       auto field_curr = m_field_mgr->get_field(name, grid_name);
       auto field_new  = field_mgr->get_field(name, grid_name);

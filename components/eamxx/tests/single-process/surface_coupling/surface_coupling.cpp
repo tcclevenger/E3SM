@@ -101,13 +101,13 @@ std::vector<std::string> create_from_file_test_data(const ekat::Comm& comm, cons
   ctrl_pl.set("save_grid_data",false);
   OutputManager4Test om;
   om.initialize(comm,om_pl,t0,false);
-  om.setup(fm,gm);
+  om.setup(fm,gm->get_grid_names());
   // Create output data:
   // T=3600, well above the max timestep for the test.
   auto tw = t0;
   const int dt = 3600;
   for (auto name : fnames) {
-    auto field = fm->get_field(name);
+    auto field = fm->get_field(name,grid->name());
     // Note we only care about surface values so we only need to generate data over nlcols.
     auto f_view_h = field.get_view<Real*,Host>();
     for (int ii=0; ii<nlcols; ii++) {
@@ -217,36 +217,36 @@ void test_imports(const FieldManager& fm,
                   const bool called_directly_after_init = false)
 {
   // Sync to host for comparing to import data
-  fm.get_field("sfc_alb_dir_vis" ).sync_to_host();
-  fm.get_field("sfc_alb_dir_nir" ).sync_to_host();
-  fm.get_field("sfc_alb_dif_vis" ).sync_to_host();
-  fm.get_field("sfc_alb_dif_nir" ).sync_to_host();
-  fm.get_field("surf_radiative_T").sync_to_host();
-  fm.get_field("T_2m"            ).sync_to_host();
-  fm.get_field("qv_2m"           ).sync_to_host();
-  fm.get_field("wind_speed_10m"  ).sync_to_host();
-  fm.get_field("snow_depth_land" ).sync_to_host();
-  fm.get_field("surf_lw_flux_up" ).sync_to_host();
-  fm.get_field("surf_mom_flux"   ).sync_to_host();
-  fm.get_field("surf_sens_flux"  ).sync_to_host();
-  fm.get_field("surf_evap"       ).sync_to_host();
-  fm.get_field("ocnfrac"         ).sync_to_host();
-  fm.get_field("landfrac"        ).sync_to_host();
-  const auto sfc_alb_dir_vis  = fm.get_field("sfc_alb_dir_vis" ).get_view<const Real*,  Host>();
-  const auto sfc_alb_dir_nir  = fm.get_field("sfc_alb_dir_nir" ).get_view<const Real*,  Host>();
-  const auto sfc_alb_dif_vis  = fm.get_field("sfc_alb_dif_vis" ).get_view<const Real*,  Host>();
-  const auto sfc_alb_dif_nir  = fm.get_field("sfc_alb_dif_nir" ).get_view<const Real*,  Host>();
-  const auto surf_radiative_T = fm.get_field("surf_radiative_T").get_view<const Real*,  Host>();
-  const auto T_2m             = fm.get_field("T_2m"            ).get_view<const Real*,  Host>();
-  const auto qv_2m            = fm.get_field("qv_2m"           ).get_view<const Real*,  Host>();
-  const auto wind_speed_10m   = fm.get_field("wind_speed_10m"  ).get_view<const Real*,  Host>();
-  const auto snow_depth_land  = fm.get_field("snow_depth_land" ).get_view<const Real*,  Host>();
-  const auto surf_lw_flux_up  = fm.get_field("surf_lw_flux_up" ).get_view<const Real*,  Host>();
-  const auto surf_mom_flux    = fm.get_field("surf_mom_flux"   ).get_view<const Real**, Host>();
-  const auto surf_sens_flux   = fm.get_field("surf_sens_flux"  ).get_view<const Real*,  Host>();
-  const auto surf_evap        = fm.get_field("surf_evap"       ).get_view<const Real*,  Host>();
-  const auto ocnfrac          = fm.get_field("ocnfrac"         ).get_view<const Real*,  Host>();
-  const auto landfrac         = fm.get_field("landfrac"        ).get_view<const Real*,  Host>();
+  fm.get_field("sfc_alb_dir_vis",grid->name() ).sync_to_host();
+  fm.get_field("sfc_alb_dir_nir",grid->name() ).sync_to_host();
+  fm.get_field("sfc_alb_dif_vis",grid->name() ).sync_to_host();
+  fm.get_field("sfc_alb_dif_nir",grid->name() ).sync_to_host();
+  fm.get_field("surf_radiative_T",grid->name()).sync_to_host();
+  fm.get_field("T_2m",grid->name()            ).sync_to_host();
+  fm.get_field("qv_2m",grid->name()           ).sync_to_host();
+  fm.get_field("wind_speed_10m",grid->name()  ).sync_to_host();
+  fm.get_field("snow_depth_land",grid->name() ).sync_to_host();
+  fm.get_field("surf_lw_flux_up",grid->name() ).sync_to_host();
+  fm.get_field("surf_mom_flux",grid->name()   ).sync_to_host();
+  fm.get_field("surf_sens_flux",grid->name()  ).sync_to_host();
+  fm.get_field("surf_evap",grid->name()       ).sync_to_host();
+  fm.get_field("ocnfrac",grid->name()         ).sync_to_host();
+  fm.get_field("landfrac",grid->name()        ).sync_to_host();
+  const auto sfc_alb_dir_vis  = fm.get_field("sfc_alb_dir_vis",grid->name() ).get_view<const Real*,  Host>();
+  const auto sfc_alb_dir_nir  = fm.get_field("sfc_alb_dir_nir",grid->name() ).get_view<const Real*,  Host>();
+  const auto sfc_alb_dif_vis  = fm.get_field("sfc_alb_dif_vis",grid->name() ).get_view<const Real*,  Host>();
+  const auto sfc_alb_dif_nir  = fm.get_field("sfc_alb_dif_nir",grid->name() ).get_view<const Real*,  Host>();
+  const auto surf_radiative_T = fm.get_field("surf_radiative_T",grid->name()).get_view<const Real*,  Host>();
+  const auto T_2m             = fm.get_field("T_2m",grid->name()            ).get_view<const Real*,  Host>();
+  const auto qv_2m            = fm.get_field("qv_2m",grid->name()           ).get_view<const Real*,  Host>();
+  const auto wind_speed_10m   = fm.get_field("wind_speed_10m",grid->name()  ).get_view<const Real*,  Host>();
+  const auto snow_depth_land  = fm.get_field("snow_depth_land",grid->name() ).get_view<const Real*,  Host>();
+  const auto surf_lw_flux_up  = fm.get_field("surf_lw_flux_up",grid->name() ).get_view<const Real*,  Host>();
+  const auto surf_mom_flux    = fm.get_field("surf_mom_flux",grid->name()   ).get_view<const Real**, Host>();
+  const auto surf_sens_flux   = fm.get_field("surf_sens_flux",grid->name()  ).get_view<const Real*,  Host>();
+  const auto surf_evap        = fm.get_field("surf_evap",grid->name()       ).get_view<const Real*,  Host>();
+  const auto ocnfrac          = fm.get_field("ocnfrac",grid->name()         ).get_view<const Real*,  Host>();
+  const auto landfrac         = fm.get_field("landfrac",grid->name()        ).get_view<const Real*,  Host>();
 
   const int ncols = surf_evap.extent(0);
 
@@ -310,14 +310,14 @@ void test_exports(const FieldManager& fm,
 
   // Some computed fields rely on calculations that are done in the AD.
   // Recompute here and verify that they were exported correctly.
-  const auto pseudo_density       = fm.get_field("pseudo_density").get_view<const Real**>();
-  const auto p_mid                = fm.get_field("p_mid").get_view<const Real**>();
-  const auto p_int                = fm.get_field("p_int").get_view<const Real**>();
-  const auto T_mid                = fm.get_field("T_mid").get_view<const Real**>();
-  const auto qv                   = fm.get_field("qv").get_view<const Real**>();
-  const auto phis                 = fm.get_field("phis").get_view<const Real*>();
-  const auto precip_liq_surf_mass = fm.get_field("precip_liq_surf_mass").get_view<const Real*>();
-  const auto precip_ice_surf_mass = fm.get_field("precip_ice_surf_mass").get_view<const Real*>();
+  const auto pseudo_density       = fm.get_field("pseudo_density",gn).get_view<const Real**>();
+  const auto p_mid                = fm.get_field("p_mid",gn).get_view<const Real**>();
+  const auto p_int                = fm.get_field("p_int",gn).get_view<const Real**>();
+  const auto T_mid                = fm.get_field("T_mid",gn).get_view<const Real**>();
+  const auto qv                   = fm.get_field("qv",gn).get_view<const Real**>();
+  const auto phis                 = fm.get_field("phis",gn).get_view<const Real*>();
+  const auto precip_liq_surf_mass = fm.get_field("precip_liq_surf_mass",gn).get_view<const Real*>();
+  const auto precip_ice_surf_mass = fm.get_field("precip_ice_surf_mass",gn).get_view<const Real*>();
 
   const int ncols = fm.get_grid()->get_num_local_dofs();
   const int nlevs = fm.get_grid()->get_num_vertical_levels();

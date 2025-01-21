@@ -52,8 +52,8 @@ public:
   // NOTE: non-trivial constructors simply call the corresponding init method
   AtmosphereInput () = default;
   AtmosphereInput (const ekat::ParameterList& params,
-                   const std::string& grid_name,
-                   const std::shared_ptr<const fm_type>& field_mgr);
+                   const std::shared_ptr<const fm_type>& field_mgr,
+                   const std::string& grid_name);
   AtmosphereInput (const ekat::ParameterList& params,
                    const std::shared_ptr<const grid_type>& grid,
                    const std::map<std::string,view_1d_host>& host_views_1d,
@@ -78,8 +78,8 @@ public:
   //               variables from the input filed will be read into.
   //               Fields can be padded/strided.
   void init (const ekat::ParameterList& params,
-             const std::string& grid_name,
-             const std::shared_ptr<const fm_type>& field_mgr);
+             const std::shared_ptr<const fm_type>& field_mgr,
+             const std::string& grid_name);
 
   // Initialize the class for reading into user-provided flattened 1d host views.
   //  - params: input parameters (must contain at least "Filename")

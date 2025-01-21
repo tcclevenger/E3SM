@@ -688,7 +688,7 @@ res_dep_memory_footprint () const {
       grids.insert(gn);
       // This FM is done on a different grid than SIM and hasn't been included in
       // the memory calculation yet.  So we can safely add its footprint
-      for (const auto& it : field_mgr->get_repo().at(gn)) {
+      for (const auto& it : field_mgr->get_repo(gn)) {
         const auto& fap = it.second->get_header().get_alloc_properties();
         if (fap.is_subfield()) {
           continue;

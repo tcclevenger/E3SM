@@ -563,7 +563,7 @@ void AtmosphereDriver::create_fields()
         // Given request for group A on grid g1 to be an Import of
         // group B on grid g2, register each field in group B in the
         // field manager on grid g1.
-        const auto& src_info = m_field_mgr->get_groups_info().at(req.src_grid).at(req.src_name);
+        const auto& src_info = m_field_mgr->get_groups_info(req.src_grid).at(req.src_name);
 
         // In the case of pg2, can't use create_remapper. But the remapper is
         // used only for a convenience function, anyway, create_tgt_fid.
@@ -670,7 +670,7 @@ void AtmosphereDriver::create_fields()
   auto& driver_options_pl = m_atm_params.sublist("driver_options");
   if (driver_options_pl.get("save_field_manager_content",false)) {
     auto grid_name = m_grids_manager->get_grid("Physics")->name();
-    auto& phys_fields = m_field_mgr->get_repo().at(grid_name);
+    auto& phys_fields = m_field_mgr->get_repo(grid_name);
     ekat::ParameterList pl_out("field_manager_content");
     pl_out.sublist("provenance") = m_atm_params.sublist("provenance");
     DefaultMetadata std_names;
@@ -979,7 +979,7 @@ void AtmosphereDriver::restart_model ()
       // No field needs to be restarted on this grid.
       continue;
     }
-    const auto& restart_group = m_field_mgr->get_groups_info().at(gn).at("RESTART");
+    const auto& restart_group = m_field_mgr->get_groups_info(gn).at("RESTART");
     std::vector<std::string> fnames;
     for (const auto& fn : restart_group->m_fields_names) {
       fnames.push_back(fn);
@@ -1837,7 +1837,7 @@ void AtmosphereDriver::report_res_dep_memory_footprint () const {
 
   // Fields
   for (auto gname : m_field_mgr->get_grids_manager()->get_grid_names()) {
-    for (const auto& it : m_field_mgr->get_repo().at(gname)) {
+    for (const auto& it : m_field_mgr->get_repo(gname)) {
       const auto& fap = it.second->get_header().get_alloc_properties();
       if (fap.is_subfield()) {
         continue;

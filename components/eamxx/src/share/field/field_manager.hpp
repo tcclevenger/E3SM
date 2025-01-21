@@ -69,11 +69,20 @@ public:
   //       store a field with the same name.
   void add_field (const Field& f);
 
-  // Get information about the state of the repo
-  int size () const { return m_fields.size(); }
+  // Get number of registered fields on particular grid
+  int size (const std::string& grid_name) const {
+    EKAT_REQUIRE_MSG(m_grids_mgr->has_grid(grid_name),
+      "Error! This field manager does not contain data on grid \""+grid_name+"\"\n");
+    return m_fields.at(grid_name).size();
+  }
 
   // Get the group_name->group_info map of all stored groups
-  const group_info_map& get_groups_info () const { return m_field_groups; }
+  const std::map<ci_string,std::shared_ptr<group_info_type>>&
+  get_groups_info (const std::string& grid_name) const {
+    EKAT_REQUIRE_MSG(m_grids_mgr->has_grid(grid_name),
+      "Error! This field manager does not contain data on grid \""+grid_name+"\"\n");
+    return m_field_groups.at(grid_name);
+  }
 
   // Adds $field_name on $grid_name to group $group_name (creating the group, if necessary).
   // NOTE: if $group_name is allocated as a bundled field, this throws.
@@ -92,7 +101,13 @@ public:
   Field& get_field (const identifier_type& id) { return get_field(id.name(), id.get_grid_name()); }
   FieldGroup get_field_group (const std::string& name, const std::string& grid_name) const;
 
-  const repo_type& get_repo () const { return m_fields; }
+  const std::map<ci_string,std::shared_ptr<Field>>&
+  get_repo (const std::string& grid_name) const {
+    EKAT_REQUIRE_MSG(m_grids_mgr->has_grid(grid_name),
+      "Error! This field manager does not contain data on grid \""+grid_name+"\"\n");
+    return m_fields.at(grid_name);
+  }
+
   const grids_mgr_type& get_grids_manager () const { return m_grids_mgr; }
 
   // Set the time stamp of all fields on given grid
