@@ -161,6 +161,8 @@ public:
   // NOTE: if already finalized, this is a no-op
   void finalize ();
 
+  field_mgr_ptr get_field_mgr () const { return m_field_mgr; }
+
   // Get atmosphere time stamp
   const util::TimeStamp& get_atm_time_stamp () const { return m_current_ts; }
 

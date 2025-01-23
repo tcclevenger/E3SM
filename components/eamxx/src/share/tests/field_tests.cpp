@@ -427,9 +427,9 @@ TEST_CASE("field_mgr", "") {
   FID fid2_2("field2_2", {tags2, dims4},  m/s, "grid2");
 
   const auto km = 1000*m;
-  FID bad1("field_1", {tags1, dims1},  m/s, "grid3"); // Bad grid
-  FID bad2("field_2", {tags1, dims1}, km/s, "grid1"); // Bad units
-  FID bad3("field_3", {tags1, dims3},  m/s, "grid1"); // Bad layout
+  FID bad1("field1_1", {tags1, dims1},  m/s, "grid3"); // Bad grid
+  FID bad2("field1_1", {tags1, dims1}, km/s, "grid1"); // Bad units
+  FID bad3("field1_1", {tags1, dims2},  m/s, "grid1"); // Bad layout
 
   ekat::Comm comm(MPI_COMM_WORLD);
   auto g1 = create_point_grid("grid1",ncols1*comm.size(),nlevs1,comm);
@@ -456,12 +456,15 @@ TEST_CASE("field_mgr", "") {
   REQUIRE_THROWS(field_mgr.register_field(FR{bad2}));
 
   // Cannot add external fields while registration is happening
-  REQUIRE_THROWS(field_mgr.add_field(Field()));
+  REQUIRE_THROWS(field_mgr.add_field(Field(fid1_1)));
 
   field_mgr.registration_ends();
 
   // Should not be able to register fields anymore
   REQUIRE_THROWS(field_mgr.register_field(FR{fid1_1}));
+
+  FID new_fid("new_field", {tags1, dims1},  m/s, "grid1");
+  REQUIRE_THROWS (field_mgr.add_field(Field(new_fid))); // Not allocated
 
   REQUIRE (field_mgr.size("grid1")==2);
   REQUIRE (field_mgr.size("grid2")==2);
@@ -520,8 +523,7 @@ TEST_CASE("field_mgr", "") {
 
   // Try to subview a field and set the subfield back in the FM
   field_mgr.add_field(f2_1.subfield("field2_1_sf",subview_dim,subview_slice,true));
-  REQUIRE (field_mgr.size("grid1")==5);
-  REQUIRE_THROWS (field_mgr.add_field(Field())); // Not allocated
+  REQUIRE (field_mgr.size("grid1")==3);
 
   auto f2_1_sf = field_mgr.get_field("field2_1_sf", "grid1");
   REQUIRE_THROWS (field_mgr.add_field(f2_1_sf)); // Cannot have duplicates

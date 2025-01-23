@@ -680,6 +680,10 @@ void FieldManager::add_field (const Field& f) {
   const auto& grid_name = f.get_header().get_identifier().get_grid_name();
 
   // This method has a few restrictions on the input field.
+  EKAT_REQUIRE_MSG(m_grids_mgr->has_grid(grid_name),
+    "Error! Attempting to add_field on grid not in the FM's grids manager:\n"
+    "  - Grid:       " + grid_name + "\n"
+    "  - Field name: " + f.name() + "\n");
   EKAT_REQUIRE_MSG (m_repo_state.at(grid_name)==RepoState::Closed or m_repo_state.at(grid_name)==RepoState::Clean,
       "Error! The method 'add_field' can only be called on a closed repo.\n");
   EKAT_REQUIRE_MSG (f.is_allocated(),
