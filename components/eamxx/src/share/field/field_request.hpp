@@ -42,26 +42,11 @@ struct GroupRequest {
   //  - ps: the pack size that the allocation of the fields in the group
   //        (and the bundled field, if any) should accommodate (see field_alloc_prop.hpp)
   //  - bundling: whether the group should be bundled (see field_group.hpp)
-  //  - imported: Is this group intended to be imported from group on src_grid
-  GroupRequest (const std::string& name_, const std::string& grid_, const int ps, const Bundling b,
-                const bool imported_, const std::string& src_name_, const std::string& src_grid_)
-   : name(name_), grid(grid_), pack_size(ps), bundling(b), imported(imported_)
+  GroupRequest (const std::string& name_, const std::string& grid_, const int ps, const Bundling b = Bundling::NotNeeded)
+   : name(name_), grid(grid_), pack_size(ps), bundling(b)
   {
     EKAT_REQUIRE_MSG(pack_size>=1, "Error! Invalid pack size request.\n");
-    if (imported) {
-      src_name = src_name_;
-      src_grid = src_grid_;
-
-      EKAT_REQUIRE_MSG (src_grid!=grid,
-          "Error! We do not allow importing from the same grid.\n");
-    }
   }
-
-  // Convenience ctors when some features are not needed
-  GroupRequest (const std::string& name_, const std::string& grid_,
-                const int ps, const Bundling b = Bundling::NotNeeded)
-   : GroupRequest(name_,grid_,ps,b,false,"","")
-  { /* Nothing to do here */ }
 
   GroupRequest (const std::string& name_, const std::string& grid_,
                 const Bundling b = Bundling::NotNeeded)
@@ -76,11 +61,6 @@ struct GroupRequest {
   std::string grid;   // Grid name
   int pack_size;      // Request an allocation that can accomodate Pack<Real,pack_size>
   Bundling bundling;  // Whether the group should be allocated as a single n+1 dimensional field
-
-  // Specifies that this group is imported from group src_name on src_grid
-  bool imported;
-  std::string src_name;
-  std::string src_grid;
 };
 
 // In order to use GroupRequest in std sorted containers (like std::set),
@@ -110,28 +90,7 @@ inline bool operator< (const GroupRequest& lhs,
   }
 
   // Same pack size, order by bundling
-  if (etoi(lhs.bundling)<etoi(rhs.bundling)) {
-    return true;
-  } else if (etoi(lhs.bundling)>etoi(rhs.bundling)) {
-    return false;
-  }
-
-  // Same bundling, order by whether or not the group is imported
-  if (lhs.imported < rhs.imported) {
-    return true;
-  } else if (lhs.imported > rhs.imported) {
-    return false;
-  }
-
-  // Same imported bool, order by source group name
-  if (lhs.src_name<rhs.src_name) {
-    return true;
-  } else if (lhs.src_name>rhs.src_name) {
-    return false;
-  }
-
-  // Same souce group name, order by source group grid
-  return lhs.src_grid<rhs.src_grid;
+  return etoi(lhs.bundling)<etoi(rhs.bundling);
 }
 
 /*

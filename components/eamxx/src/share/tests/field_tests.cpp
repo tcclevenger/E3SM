@@ -530,69 +530,107 @@ TEST_CASE("field_mgr", "") {
 }
 
 TEST_CASE("tracers_bundle", "") {
-  // using namespace scream;
-  // using namespace ekat::units;
-  // using namespace ShortFieldTagsNames;
-  // using FR  = FieldRequest;
+  using namespace scream;
+  using namespace ekat::units;
+  using namespace ShortFieldTagsNames;
+  using FR  = FieldRequest;
 
-  // const int ncols = 4;
-  // const int nlevs = 7;
+  const int ncols1 = 4;
+  const int ncols2 = 3;
+  const int nlevs = 7;
 
-  // std::vector<FieldTag> tags = {COL,LEV};
-  // std::vector<int> dims = {ncols,nlevs};
+  std::vector<FieldTag> tags = {COL,LEV};
+  std::vector<int> dims1 = {ncols1,nlevs};
+  std::vector<int> dims2 = {ncols2,nlevs};
 
-  // const auto nondim = Units::nondimensional();
+  const auto nondim = Units::nondimensional();
 
-  // const std::string grid_name = "physics";
-  // FieldIdentifier qv_id("qv", {tags, dims}, nondim, grid_name);
-  // FieldIdentifier qc_id("qc", {tags, dims}, nondim, grid_name);
-  // FieldIdentifier qr_id("qr", {tags, dims}, nondim, grid_name);
+  const std::string gn1 = "grid1";
+  const std::string gn2 = "grid2";
 
-  // ekat::Comm comm(MPI_COMM_WORLD);
-  // auto pg = create_point_grid(grid_name,ncols*comm.size(),nlevs,comm);
+  FieldIdentifier qv_id("qv", {tags, dims1}, nondim, gn1);
+  FieldIdentifier qc_id("qc", {tags, dims1}, nondim, gn1);
+  FieldIdentifier qr_id("qr", {tags, dims2}, nondim, gn2);
 
-  // FieldManager field_mgr(pg);
-  // field_mgr.registration_begins();
-  // field_mgr.register_field(FR{qv_id,"tracers"});
-  // field_mgr.register_field(FR{qc_id,"tracers"});
-  // field_mgr.register_field(FR{qr_id,"tracers"});
-  // field_mgr.register_group(GroupRequest("tracers",grid_name,Bundling::Required));
-  // field_mgr.registration_ends();
+  FieldIdentifier a1_id("a1", {tags, dims1}, nondim, gn1);
+  FieldIdentifier a2_id("a2", {tags, dims2}, nondim, gn2);
+  //FieldIdentifier _a2_id("a2", {tags, dims1}, nondim, gn1);
+  FieldIdentifier a3_id("a3", {tags, dims1}, nondim, gn1);
 
-  // auto qv = field_mgr.get_field(qv_id.name());
-  // auto qc = field_mgr.get_field(qc_id.name());
-  // auto qr = field_mgr.get_field(qr_id.name());
+  ekat::Comm comm(MPI_COMM_WORLD);
+  auto g1 = create_point_grid(gn1,ncols1*comm.size(),nlevs,comm);
+  auto g2 = create_point_grid(gn2,ncols2*comm.size(),nlevs,comm);
+  auto gm = std::make_shared<LibraryGridsManager>(g1, g2);
+  FieldManager field_mgr(gm);
 
-  // // The field_mgr should have allocated the group bundled
-  // auto group = field_mgr.get_field_group("tracers");
-  // REQUIRE (group.m_info->m_bundled);
+  field_mgr.registration_begins();
 
-  // const auto& Q_name = group.m_bundle->get_header().get_identifier().name();
-  // auto Q = field_mgr.get_field(Q_name);
+  using los = std::list<std::string>;
+  field_mgr.register_field(FR{qv_id,los{"tracers", "turbulence_advected_tracers"}});
+  field_mgr.register_field(FR{qc_id,los{"tracers", "turbulence_advected_tracers"}});
+  field_mgr.register_field(FR{qr_id,los{"tracers", "turbulence_advected_tracers"}});
+  field_mgr.register_field(FR{a1_id,"tracers"});
+  field_mgr.register_field(FR{a2_id,"tracers"});
+  //field_mgr.register_field(FR{_a2_id,"tracers"});
+  field_mgr.register_field(FR{a3_id,"tracers"});
+  field_mgr.register_group(GroupRequest("tracers",gn1,Bundling::Required));
+  field_mgr.register_group(GroupRequest("turbulence_advected_tracers",gn1,Bundling::Required));
+  field_mgr.register_group(GroupRequest("tracers",gn2,Bundling::Required));
 
-  // // The bundled field in the group should match the field we get from the field_mgr
-  // REQUIRE (Q.equivalent(*group.m_bundle));
+  field_mgr.registration_ends();
 
-  // // Check that Q is set as parent for all q's.
-  // auto qvp = qv.get_header().get_parent().lock();
-  // auto qcp = qc.get_header().get_parent().lock();
-  // auto qrp = qr.get_header().get_parent().lock();
-  // REQUIRE ((qvp!=nullptr && qvp.get()==&Q.get_header()));
-  // REQUIRE ((qcp!=nullptr && qvp.get()==&Q.get_header()));
-  // REQUIRE ((qrp!=nullptr && qvp.get()==&Q.get_header()));
+  // The field_mgr should have allocated the group bundled
+  auto tracers1 = field_mgr.get_field_group("tracers", gn1);
+  auto tracers2 = field_mgr.get_field_group("tracers", gn2);
+  auto turb_tracers = field_mgr.get_field_group("turbulence_advected_tracers", gn1);
+  REQUIRE (tracers1.m_info->m_bundled);
+  REQUIRE (tracers2.m_info->m_bundled);
+  REQUIRE (turb_tracers.m_info->m_bundled);
+
+
+  printf("Tracers1:");
+  for (auto fn : tracers1.m_info->m_fields_names) {
+    printf(" %s", fn.c_str());
+  }
+  printf("\nTurbTracers1:");
+  for (auto fn : turb_tracers.m_info->m_fields_names) {
+    printf(" %s", fn.c_str());
+  }
+  printf("\nTracers2:");
+  for (auto fn : tracers2.m_info->m_fields_names) {
+    printf(" %s", fn.c_str());
+  }
+  printf("\n");
+
+
+
+  // REQUIRE ((qv_p!=nullptr && qv_p.get()==&Q.get_header()));
+  // REQUIRE ((qc_p!=nullptr && qc_p.get()==&Q.get_header()));
+  // REQUIRE ((qr_p!=nullptr && qr_p.get()==&Q.get_header()));
+
+
+  // REQUIRE ((a1_p!=nullptr && a1_p.get()==&Q_turb.get_header()));
+  // REQUIRE ((a2_p!=nullptr && a2_p.get()==&Q_turb.get_header()));
+  // REQUIRE ((a3_p!=nullptr && a3_p.get()==&Q_turb.get_header()));
 
   // // The indices used for each q to subview Q
-  // int idx_v, idx_c, idx_r;
+  // int idx_v, idx_c, idx_r, idx_a1, idx_a2, idx_a3;
 
   // // The idx must be stored
   // idx_v = group.m_info->m_subview_idx.at("qv");
   // idx_c = group.m_info->m_subview_idx.at("qc");
   // idx_r = group.m_info->m_subview_idx.at("qr");
+  // idx_a1 = group_turb.m_info->m_subview_idx.at("a1");
+  // idx_a2 = group_turb.m_info->m_subview_idx.at("a2");
+  // idx_a3 = group_turb.m_info->m_subview_idx.at("a3");
 
-  // // All idx must be in [0,2] and must be different
+  // // For each idx must be in [0,2] and must be different
   // REQUIRE ((idx_v>=0 && idx_v<3 &&
   //           idx_c>=0 && idx_c<3 &&
   //           idx_r>=0 && idx_r<3));
+  // REQUIRE ((idx_a1>=0 && idx_a1<3 &&
+  //           idx_a2>=0 && idx_a2<3 &&
+  //           idx_a3>=0 && idx_a3<3));
   // REQUIRE ((idx_v!=idx_c && idx_v!=idx_r && idx_c!=idx_r));
 
   // // Now fill Q with random values
@@ -609,7 +647,7 @@ TEST_CASE("tracers_bundle", "") {
   // auto qch = qc.get_view<Real**,Host>();
   // auto qrh = qr.get_view<Real**,Host>();
 
-  // for (int icol=0; icol<ncols; ++icol) {
+  // for (int icol=0; icol<ncols1; ++icol) {
   //   for (int ilev=0; ilev<nlevs; ++ilev) {
   //     REQUIRE (Qh(icol,idx_v,ilev)==qvh(icol,ilev));
   //     REQUIRE (Qh(icol,idx_c,ilev)==qch(icol,ilev));
@@ -625,98 +663,6 @@ TEST_CASE("tracers_bundle", "") {
   // REQUIRE (qv_ptr->equivalent(qv));
   // REQUIRE (qc_ptr->equivalent(qc));
   // REQUIRE (qr_ptr->equivalent(qr));
-}
-
-TEST_CASE("multiple_bundles") {
-  // using namespace scream;
-  // using namespace ekat::units;
-  // using namespace ShortFieldTagsNames;
-  // using SL = std::list<std::string>;
-
-  // const int ncols = 4;
-  // const int nlevs = 7;
-
-  // std::vector<FieldTag> tags = {COL,LEV};
-  // std::vector<int> dims = {ncols,nlevs};
-
-  // const auto nondim = Units::nondimensional();
-
-  // const std::string grid_name = "physics";
-  // ekat::Comm comm(MPI_COMM_WORLD);
-  // auto pg = create_point_grid(grid_name,ncols*comm.size(),nlevs,comm);
-
-  // FieldIdentifier a_id("a", {tags, dims}, nondim, grid_name);
-  // FieldIdentifier b_id("b", {tags, dims}, nondim, grid_name);
-  // FieldIdentifier c_id("c", {tags, dims}, nondim, grid_name);
-  // FieldIdentifier d_id("d", {tags, dims}, nondim, grid_name);
-  // FieldIdentifier e_id("e", {tags, dims}, nondim, grid_name);
-  // FieldIdentifier f_id("f", {tags, dims}, nondim, grid_name);
-
-  // FieldRequest a_req(a_id,SL{"group1","group3"});
-  // FieldRequest b_req(b_id,SL{"group1"});
-  // FieldRequest c_req(c_id,SL{"group1","group2"});
-  // FieldRequest d_req(d_id,SL{"group1","group3"});
-  // FieldRequest e_req(e_id,SL{"group1","group2"});
-  // FieldRequest f_req(f_id,SL{"group1"});
-
-  // GroupRequest g1_req ("group1",grid_name,Bundling::Required);
-  // GroupRequest g2_req ("group2",grid_name,Bundling::Required);
-
-  // // The above group specs should give the following groups:
-  // // g1: [a,b,c,d,e,f]
-  // // g2: [c,e]
-  // // g3: [a,c,d,e]
-  // // g4: [c,e]
-  // // g5: [a,b,e,f]
-  // // The bundling requests can be accommodated for g1,g2,g3,g4, but not g5.
-  // // But g5 request is only 'Preferred', so the FM won't error out.
-  // // The order of fields in the 'encompassing' group is {[c,e],[a,d],[b,f]},
-  // // where [f1,..,fn] means that the order of those two fields can be anything.
-  // // The 'block'-reverse of that list is also possible: {[b,f],[a,d],[c,e]}
-
-  // FieldManager field_mgr(pg);
-  // field_mgr.registration_begins();
-
-  // // Register single fields
-  // field_mgr.register_field(a_req);
-  // field_mgr.register_field(b_req);
-  // field_mgr.register_field(c_req);
-  // field_mgr.register_field(d_req);
-  // field_mgr.register_field(e_req);
-  // field_mgr.register_field(f_req);
-
-  // // Register groups
-  // field_mgr.register_group(g1_req);
-  // field_mgr.register_group(g2_req);
-
-  // field_mgr.registration_ends();
-
-  // auto g1 = field_mgr.get_field_group(g1_req.name);
-  // auto g2 = field_mgr.get_field_group(g2_req.name);
-  // auto g5 = field_mgr.get_field_group(g5_req.name);
-
-  // // First 4 groups should be bundled
-  // REQUIRE (g1.m_info->m_bundled);
-  // REQUIRE (g2.m_info->m_bundled);
-  // REQUIRE (not g5.m_info->m_bundled);
-
-  // // Check that the order of fields in g1 is the expected one
-  // const auto& fnames = g1.m_info->m_fields_names;
-  // const auto& f1 = *std::next(fnames.begin(),0);
-  // const auto& f2 = *std::next(fnames.begin(),1);
-  // const auto& f3 = *std::next(fnames.begin(),2);
-  // const auto& f4 = *std::next(fnames.begin(),3);
-  // const auto& f5 = *std::next(fnames.begin(),4);
-  // const auto& f6 = *std::next(fnames.begin(),5);
-  // if (f1=="b" || f1=="f") {
-  //   REQUIRE ( ((f1=="b" && f2=="f") || (f1=="f" && f2=="b")) );
-  //   REQUIRE ( ((f3=="a" && f4=="d") || (f3=="d" && f4=="a")) );
-  //   REQUIRE ( ((f5=="c" && f6=="e") || (f5=="e" && f6=="c")) );
-  // } else {
-  //   REQUIRE ( ((f1=="c" && f2=="e") || (f1=="e" && f2=="c")) );
-  //   REQUIRE ( ((f3=="a" && f4=="d") || (f3=="d" && f4=="a")) );
-  //   REQUIRE ( ((f5=="b" && f6=="f") || (f5=="f" && f6=="b")) );
-  // }
 }
 
 TEST_CASE ("update") {

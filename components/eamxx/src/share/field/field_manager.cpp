@@ -234,6 +234,67 @@ void FieldManager::registration_begins ()
   }
 }
 
+void FieldManager::pre_process_group_requests () {
+  // Loop over grids in FM and gather a list of all field names requested for a group
+  // and store which grid registered the field.
+  std::map<std::string, std::map<std::string, std::set<std::string>>> fnames_in_group;
+  for (auto grid_name : m_grids_mgr->get_grid_names()) {
+    for (const auto& greqs : m_group_requests.at(grid_name)) {
+      for (auto req : greqs.second) {
+        for (auto fn : m_field_groups.at(grid_name).at(req.name)->m_fields_names) {
+          fnames_in_group[req.name][fn].emplace(grid_name);
+        }
+      }
+    }
+  }
+
+  // For now we require only one grid has registered each field. This is purely
+  // to simplify the logic in the use case of GLL and PG2 tracers.
+  for (auto group : fnames_in_group) {
+    for (auto field : group.second) {
+      if (field.second.size()>1) {
+        std::ostringstream ss;
+        ss << "Error! FieldManager only allows a field within a group to be registered on a single grid.\n"
+              "  - Field name: " + field.first + "\n"
+              "  - Registered on:";
+        for (auto gn : field.second) {
+          ss << " " + gn;
+        }
+        ss << "\n";
+        EKAT_ERROR_MSG(ss.str());
+      }
+    }
+  }
+
+
+  // Loop over all grids and register fields associated with groups
+  // where the field is not yet registered.
+  for (auto group : fnames_in_group) {
+    for (auto grid_it : m_grids_mgr->get_repo()) {
+      const auto grid_name = grid_it.first;
+      const auto grid = grid_it.second;
+      auto& group_info = get_groups_info(grid_name);
+
+      if (group_info.find(group.first) != group_info.end()) {
+        // If this group is registered on this grid,
+        // look to see if all fields have been registered
+        for (auto fn : group.second) {
+          if (not has_field(fn.first,grid_name)) {
+            printf("%s: doesn't exist on %s, instead exists on %s\n", fn.first.c_str(), grid_name.c_str(), fn.second.begin()->c_str());
+
+
+            FieldRequest req;
+            register_field(req);
+          }
+        }
+      }
+    }
+  }
+
+
+  EKAT_ERROR_MSG("Intentional Stop\n");
+}
+
 void FieldManager::registration_ends ()
 {
   // Before doing anything, ensure that for each incomplete requests the field has
@@ -248,13 +309,10 @@ void FieldManager::registration_ends ()
   m_incomplete_requests.clear();
 
   // This method is responsible of allocating the fields in the repo. The most delicate part is
-  // the allocation of fields group, in the case where bundling is requested. In particular,
-  // we want to try to honor as many requests for bundling as possible. If we can't accommodate
-  // all the GroupRequest's that have bundling either Required or Preferred, we will try again
-  // by considering only those with Required bundling (see GroupRequest for detail on those
-  // values). If we are still not able to honor requests, we will error out. An example of a
-  // scenario where we can't honor all requests is given by the three groups G1=(A,B), G2=(B,C),
-  // and G3=(A,C). Clearly, only two of these groups can have contiguous allocation.
+  // the allocation of fields group, in the case where bundling is required. If we are not able
+  // to honor requests for bundling, we will error out. An example of a scenario where we can't
+  // honor all requests is given by the three groups G1=(A,B), G2=(B,C), and G3=(A,C). Clearly,
+  // only two of these groups can have contiguous allocation.
 
   // To understand how we can parse the groups to figure out if/how to accommodate all requests,
   // consider the following GR:  G1=(A,B,C), G2=(A,B,C,D,E), G3=(C,D), G4=(C,D,E,F), G5=((D,E,F,G).
@@ -265,9 +323,9 @@ void FieldManager::registration_ends ()
   // all the requests:
   //  1) ensure all groups contain the desired members. This means that we need to
   //     loop over GroupRequest (GR), and make sure there are fields registered in those
-  //     groups (querying m_field_groups info structs). If a GR is derived from another
-  //     GR, like a 'Subset' group (see GR header for details), we make sure the group
-  //     is in m_field_groups (if not, add it), and contains all the proper fields.
+  //     groups (querying m_field_groups info structs). If GR of the same name on different
+  //     grids within the FM exist, we register the union of fields over the grids to
+  //     ensure that the same groups will have the same number of fields.
   //  2) Focus only on GR that require (or prefer) a bundled group, discarding others.
   //     All the remaining group can simply "grab" individual fields later (and they
   //     can even grab some "individual" fields, and some fields that are slices of
@@ -305,21 +363,21 @@ void FieldManager::registration_ends ()
   //        to remove.
   //
 
-  // Start by processing group request. This function will ensure that, if there's a
-  // request for group A that depends on the content of group B, the FieldGroupInfo
-  // for group A is updated to contain the correct fields, based on the content
-  // of group B. It also checks that the requests are not inconsistent.
+  // Start by processing group request. This function checks that all group fields are properly
+  // registered on the appropriate grid and the FieldGroupInfo is up to date. If group A is
+  // requested on grid 1 and grid 2, we make sure to register the union of all fields in group A
+  // on both grids.
+  pre_process_group_requests();
+
   for (auto grid_it : m_grids_mgr->get_repo()) {
     const auto& grid_name = grid_it.first;
     const auto& grid = grid_it.second;
-
-    pre_process_group_requests (grid_name);
 
     // Gather a list of groups to be bundled
     std::list<std::string> groups_to_bundle;
     for (const auto& greqs : m_group_requests.at(grid_name)) {
       for (const auto& r : greqs.second) {
-        if (r.bundling!=Bundling::NotNeeded) {
+        if (r.bundling==Bundling::Required) {
           // There's at least one request for this group to be bunlded.
           groups_to_bundle.push_back(greqs.first);
         }
@@ -412,45 +470,6 @@ void FieldManager::registration_ends ()
         }
 
         auto cluster_ordered_fields = contiguous_superset(groups_fields);
-        while (cluster_ordered_fields.size()==0) {
-          // Try to see if there's a group we can remove, that is, a group
-          // for which bundling is only Preferred. If there's no such group,
-          // we break the loop, and we will crap out.
-
-          std::list<std::string>::iterator it = cluster.end();
-          for (const auto& gn : cluster) {
-            const auto& reqs = m_group_requests.at(grid_name).at(gn);
-            bool remove_this = true;
-            for (const auto& r : reqs) {
-              if (r.bundling==Bundling::Required) {
-                // Can't remove this group, cause at least one request "requires" bundling
-                remove_this = false;
-                break;
-              }
-            }
-
-            if (remove_this) {
-              // It's ok to try and remove this group from the cluster
-              it = ekat::find(cluster,gn);
-              break;
-            }
-          }
-
-          if (it==cluster.end()) {
-            // We were not able to find a group that can be removed from the cluster,
-            // meaning that all groups in the cluster are "Required" to be bunlded.
-            // Time to quit.
-            break;
-          }
-
-          // Ok, let's remove group *it, and try again
-          // Note: we have to remove the group name from gnames, but we also have to
-          //       remove its list of fields from group_fields
-          auto pos = std::distance(cluster.begin(),it);
-          cluster.erase(std::next(cluster.begin(),pos));
-          groups_fields.erase(std::next(groups_fields.begin(),pos));
-          cluster_ordered_fields = contiguous_superset(groups_fields);
-        }
 
         if (cluster_ordered_fields.size()==0) {
           // We were not able to accommodate all the requests bundling the groups
@@ -724,85 +743,6 @@ std::shared_ptr<Field>
 FieldManager::get_field_ptr (const std::string& name, const std::string& grid_name) const {
   auto it = m_fields.at(grid_name).find(name);
   return it==m_fields.at(grid_name).end() ? nullptr : it->second;
-}
-
-void FieldManager::pre_process_group_requests (const std::string& grid_name) {
-  // GroupRequests that are formulated in terms of another group (i.e., where
-  // req.imported==true), need a preprocessing step.
-  // This step needs to do two things: 1) make sure the group contains all
-  // the fields it needs, and 2) make sure the different group requests are
-  // consistent and valid.
-  // Since requests can be "chained" (in the sense explained above), we must process
-  // them in the "right" order. That is, if we have a req for group A that
-  // depends on group B, and there are reqs for group B that depend on other groups,
-  // we must process group B first. So first, let's sort group requests
-  // so that they are in the correct order
-
-  // A list storing the order in which we process the requests.
-  std::list<std::string> ordered_groups;
-  while (ordered_groups.size()<m_group_requests[grid_name].size()) {
-    // If this iteration of the while loop does not increase the size of ordered_groups,
-    // then there are circular deps, and we need to error out.
-    size_t curr_size = ordered_groups.size();
-
-    for (const auto& greqs : m_group_requests[grid_name]) {
-      if (ekat::contains(ordered_groups,greqs.first)) {
-        // We already processed this group
-        continue;
-      }
-
-      // In order for this group to be able to be processed,
-      // it must only have deps on groups already added to ordered_groups.
-      bool can_process_this_group = true;
-      for (const auto& req : greqs.second) {
-        if (req.imported &&
-            not ekat::contains(ordered_groups,req.src_name)) {
-          can_process_this_group = false;
-          break;
-        }
-      }
-
-      if (can_process_this_group) {
-        // Ok, this group does not depend on any other group, or it depends
-        // on groups we already processed. Append it to ordered_groups.
-        ordered_groups.push_back(greqs.first);
-      }
-    }
-
-    EKAT_REQUIRE_MSG (curr_size<ordered_groups.size(),
-        "Error! There are circular dependencies between group requests.\n"
-        "       The FieldManager cannot handle them.\n");
-
-  }
-
-  // Now we have an order in which we can process group requests. Go in order.
-  for (const auto& gname : ordered_groups) {
-    const auto& reqs = m_group_requests[grid_name].at(gname);
-
-    // Check consistency.
-    for (const auto& req : reqs) {
-      // Depending on the derivation type (if any), do different checks
-      if (req.imported) {
-        // An imported group cannot depend on other groups. That is, we don't allow
-        // to do something like G1 = import(G2,from_grid_blah) + G3.
-        // We allow, however, to have multiple 'Import' requests, simply with different
-        // pack sizes or bundling requests
-        for (const auto& r : reqs) {
-          if (r.imported) {
-            EKAT_REQUIRE_MSG (r.src_name==req.src_name &&
-                              r.src_grid==req.src_grid,
-                "Error! An Import request cannot be mixed with other Import requests\n"
-                "       of different groups or from different grids.\n"
-                "  group name: " + req.name + "\n"
-                "  current req source group: " + req.src_name + "\n"
-                "  current req source grid: " + req.src_grid + "\n"
-                "  second req source group: " + r.src_name + "\n"
-                "  second req source grid: " + r.src_grid + "\n");
-          }
-        }
-      }
-    }
-  }
 }
 
 } // namespace scream

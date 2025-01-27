@@ -122,7 +122,7 @@ protected:
   std::shared_ptr<Field> get_field_ptr(const std::string& name, const std::string& grid_name) const;
   std::shared_ptr<Field> get_field_ptr(const identifier_type& id) const;
 
-  void pre_process_group_requests (const std::string& grid_name);
+  void pre_process_group_requests ();
 
   // The state of the repository
   std::map<std::string, RepoState> m_repo_state;
