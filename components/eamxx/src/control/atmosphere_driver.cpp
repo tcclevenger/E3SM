@@ -538,74 +538,14 @@ void AtmosphereDriver::create_fields()
   for (const auto& req : m_atm_process_group->get_computed_field_requests()) {
     m_field_mgr->register_field(req);
   }
+  for (const auto& greq : m_atm_process_group->get_required_group_requests()) {
+    m_field_mgr->register_group(greq);
+  }
+  for (const auto& greq : m_atm_process_group->get_computed_group_requests()) {
+    m_field_mgr->register_group(greq);
+  }
 
-  // Register required/updated groups
-  // IMPORTANT: Some group requests might be formulated in terms of another
-  //   group request (see field_requests.hpp). The FieldManager class is able
-  //   to handle most of these. However, a GroupRequest that requests to Import
-  //   a group from another grid cannot be handled internally by the FieldManager.
-  //   In particular, the FM needs the fields in the imported group to be
-  //   registered in the FM before it can handle the request.
-  //   For this reason, we scan required/updated group requests from all atm procs,
-  //   and if we find an Import request, for each field in the "source" group,
-  //   we register a corresponding version of the field on the "target" FM.
-
-  // Helper lambda to reduce code duplication
-  // auto process_imported_groups = [&](const std::set<GroupRequest>& group_requests) {
-  //   for (auto req : group_requests) {
-  //     if (req.imported) {
-  //       EKAT_REQUIRE_MSG (req.grid!=req.src_grid,
-  //           "Error! A group request with 'Import' derivation type is meant to import\n"
-  //           "       a group of fields from a grid to another. Found same grid name instead.\n"
-  //           "   group name: " + req.name + "\n"
-  //           "   group to import: " + req.src_name + "\n"
-  //           "   grid name: " + req.grid + "\n");
-  //       // Given request for group A on grid g1 to be an Import of
-  //       // group B on grid g2, register each field in group B in the
-  //       // field manager on grid g1.
-  //       const auto& src_info = m_field_mgr->get_groups_info(req.src_grid).at(req.src_name);
-
-  //       // In the case of pg2, can't use create_remapper. But the remapper is
-  //       // used only for a convenience function, anyway, create_tgt_fid.
-  //       auto r = fvphyshack ? nullptr : m_grids_manager->create_remapper(req.src_grid,req.grid);
-  //       // Loop over all fields in group src_name on grid src_grid.
-  //       for (const auto& fname : src_info->m_fields_names) {
-  //         // Get field on src_grid
-  //         const auto& src_fid = m_field_mgr->get_field_id(fname, req.src_grid);
-
-  //         // Build a FieldRequest for the same field on greq's grid,
-  //         // and add it to the group of this request
-  //         if (fvphyshack) {
-  //           auto dims = src_fid.get_layout().dims();
-  //           dims[0] = m_grids_manager->get_grid(req.grid)->get_num_local_dofs();
-  //           FieldLayout fl(src_fid.get_layout().tags(), dims);
-  //           FieldIdentifier fid(src_fid.name(), fl, src_fid.get_units(), req.grid);
-  //           FieldRequest freq(fid,req.name,req.pack_size);
-  //           m_field_mgr->register_field(freq);
-  //         } else {
-  //           const auto fid = r->create_tgt_fid(src_fid);
-  //           FieldRequest freq(fid,req.name,req.pack_size);
-  //           m_field_mgr->register_field(freq);
-  //         }
-  //       }
-
-  //       // Now that the fields have been imported on this grid's GM,
-  //       // this group request is a "normal" group request, and we can
-  //       // reset the imported bool to false.
-  //       req.imported = false;
-  //     }
-
-  //     printf("name: %s, grid: %s, src_name: %s, src_grid: %s\n",
-  //            req.name.c_str(), req.grid.c_str(), req.src_name.c_str(), req.src_grid.c_str());
-
-  //     m_field_mgr->register_group(req);
-  //   }
-  // };
-
-  //process_imported_groups (m_atm_process_group->get_required_group_requests());
-  //process_imported_groups (m_atm_process_group->get_computed_group_requests());
-
-  // Close the FM, allocate all fields
+  // Closes the FM, allocate all fields
   m_field_mgr->registration_ends();
 
   // Set all the fields/groups in the processes. Input fields/groups will be handed

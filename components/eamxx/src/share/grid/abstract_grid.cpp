@@ -116,7 +116,7 @@ AbstractGrid::get_3d_tensor_layout (const bool midpoints, const std::vector<int>
 }
 
 FieldLayout
-AbstractGrid::create_equivalent_layout (const FieldLayout& template_layout) const
+AbstractGrid::equivalent_layout (const FieldLayout& template_layout) const
 {
   using namespace ShortFieldTagsNames;
 

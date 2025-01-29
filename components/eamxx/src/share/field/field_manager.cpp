@@ -237,73 +237,62 @@ void FieldManager::registration_begins ()
 void FieldManager::pre_process_group_requests () {
   // Loop over grids in FM and gather a list of all field names requested for a group
   // and store which grid registered the field.
-  std::map<std::string, std::map<std::string, std::set<std::string>>> fnames_in_group;
+  std::map<std::string, std::map<std::string, std::string>> src_grids_for_fields;
   for (auto grid_name : m_grids_mgr->get_grid_names()) {
     for (const auto& greqs : m_group_requests.at(grid_name)) {
       for (auto req : greqs.second) {
         for (auto fn : m_field_groups.at(grid_name).at(req.name)->m_fields_names) {
-          fnames_in_group[req.name][fn].emplace(grid_name);
+          // For now we require only one grid has registered each field. This is purely
+          // to simplify the logic for the use case of GLL and PG2 tracers.
+          EKAT_REQUIRE_MSG(src_grids_for_fields[req.name].find(fn)==src_grids_for_fields[req.name].end()
+                           ||
+                           src_grids_for_fields[req.name][fn] == grid_name,
+            "Error! FieldManager only allows a field within a group to be registered on a single grid.\n"
+            "  - Field name: " + fn + "\n"
+            "  - Registered on: " + grid_name + " and " + src_grids_for_fields[req.name].at(fn) + "\n");
+
+          src_grids_for_fields[req.name][fn] = grid_name;
         }
       }
     }
   }
-
-  // For now we require only one grid has registered each field. This is purely
-  // to simplify the logic in the use case of GLL and PG2 tracers.
-  for (auto group : fnames_in_group) {
-    for (auto field : group.second) {
-      if (field.second.size()>1) {
-        std::ostringstream ss;
-        ss << "Error! FieldManager only allows a field within a group to be registered on a single grid.\n"
-              "  - Field name: " + field.first + "\n"
-              "  - Registered on:";
-        for (auto gn : field.second) {
-          ss << " " + gn;
-        }
-        ss << "\n";
-        EKAT_ERROR_MSG(ss.str());
-      }
-    }
-  }
-
 
   // Loop over all grids and register fields associated with groups
   // where the field is not yet registered.
-  for (auto group : fnames_in_group) {
-    for (auto grid_it : m_grids_mgr->get_repo()) {
-      const auto grid_name = grid_it.first;
-      const auto grid = grid_it.second;
-      auto& group_info = get_groups_info(grid_name);
+  for (auto [group_name, field_grid_map] : src_grids_for_fields) {
+    for (auto [grid_name,grid] : m_grids_mgr->get_repo()) {
+      auto& groups_info = get_groups_info(grid_name);
 
-      if (group_info.find(group.first) != group_info.end()) {
+      if (groups_info.find(group_name) != groups_info.end()) {
         // If this group is registered on this grid,
-        // look to see if all fields have been registered
-        for (auto fn : group.second) {
-          if (not has_field(fn.first,grid_name)) {
-            printf("%s: doesn't exist on %s, instead exists on %s\n", fn.first.c_str(), grid_name.c_str(), fn.second.begin()->c_str());
+        // register any fields that are not yet registered
+        for (auto [field_name, src_grid_name] : field_grid_map) {
+          if (not has_field(field_name,grid_name)) {
+            printf("%s: doesn't exist on %s, instead exists on %s\n", field_name.c_str(), grid_name.c_str(), src_grid_name.c_str());
 
-
-            FieldRequest req;
-            register_field(req);
+            const auto src_fid = get_field_id(field_name, src_grid_name);
+            const auto fl = m_grids_mgr->get_grid(grid_name)->equivalent_layout(src_fid.get_layout());
+            FieldIdentifier fid(field_name, fl, src_fid.get_units(), grid_name);
+            for (auto greq : m_group_requests.at(grid_name).at(group_name)) {
+              FieldRequest req(fid, greq.name, greq.pack_size);
+              register_field(req);
+            }
           }
         }
       }
     }
   }
-
-
-  EKAT_ERROR_MSG("Intentional Stop\n");
 }
 
 void FieldManager::registration_ends ()
 {
   // Before doing anything, ensure that for each incomplete requests the field has
   // been registered with a complete FID.
-  for (const auto& it : m_incomplete_requests) {
-    EKAT_REQUIRE_MSG (has_field(it.first, it.second),
+  for (const auto& [field_name, grid_name] : m_incomplete_requests) {
+    EKAT_REQUIRE_MSG (has_field(field_name, grid_name),
         "Error! Found an incomplete FieldRequest for a field not registered with a valid identifier.\n"
-        "  - field name: " + it.first + "\n"
-        "  - grid  name: " + it.second + "\n");
+        "  - field name: " + field_name + "\n"
+        "  - grid  name: " + grid_name + "\n");
   }
   // We no longer need this
   m_incomplete_requests.clear();
@@ -369,10 +358,7 @@ void FieldManager::registration_ends ()
   // on both grids.
   pre_process_group_requests();
 
-  for (auto grid_it : m_grids_mgr->get_repo()) {
-    const auto& grid_name = grid_it.first;
-    const auto& grid = grid_it.second;
-
+  for (auto& [grid_name, grid] : m_grids_mgr->get_repo()) {
     // Gather a list of groups to be bundled
     std::list<std::string> groups_to_bundle;
     for (const auto& greqs : m_group_requests.at(grid_name)) {

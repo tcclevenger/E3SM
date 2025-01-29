@@ -76,7 +76,7 @@ public:
     return m_fields.at(grid_name).size();
   }
 
-  // Get the group_name->group_info map of all stored groups
+  // Get the group_name->group_info map of all stored groups on a grid
   const std::map<ci_string,std::shared_ptr<group_info_type>>&
   get_groups_info (const std::string& grid_name) const {
     EKAT_REQUIRE_MSG(m_grids_mgr->has_grid(grid_name),

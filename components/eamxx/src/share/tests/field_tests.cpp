@@ -554,7 +554,6 @@ TEST_CASE("tracers_bundle", "") {
 
   FieldIdentifier a1_id("a1", {tags, dims1}, nondim, gn1);
   FieldIdentifier a2_id("a2", {tags, dims2}, nondim, gn2);
-  //FieldIdentifier _a2_id("a2", {tags, dims1}, nondim, gn1);
   FieldIdentifier a3_id("a3", {tags, dims1}, nondim, gn1);
 
   ekat::Comm comm(MPI_COMM_WORLD);
@@ -570,8 +569,8 @@ TEST_CASE("tracers_bundle", "") {
   field_mgr.register_field(FR{qc_id,los{"tracers", "turbulence_advected_tracers"}});
   field_mgr.register_field(FR{qr_id,los{"tracers", "turbulence_advected_tracers"}});
   field_mgr.register_field(FR{a1_id,"tracers"});
+  field_mgr.register_field(FR{a1_id,"tracers", 16}); // Repeat request, but different pack size
   field_mgr.register_field(FR{a2_id,"tracers"});
-  //field_mgr.register_field(FR{_a2_id,"tracers"});
   field_mgr.register_field(FR{a3_id,"tracers"});
   field_mgr.register_group(GroupRequest("tracers",gn1,Bundling::Required));
   field_mgr.register_group(GroupRequest("turbulence_advected_tracers",gn1,Bundling::Required));
