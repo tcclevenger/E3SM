@@ -286,7 +286,9 @@ void AtmosphereDriver::create_grids()
 
   // Tell the grid manager to build all the grids required
   // by the atm processes
+  start_timer("EAMxx::build_grids");
   m_grids_manager->build_grids();
+  stop_timer("EAMxx::build_grids");
 
   m_atm_logger->debug("  [EAMxx] Grids created.");
 
