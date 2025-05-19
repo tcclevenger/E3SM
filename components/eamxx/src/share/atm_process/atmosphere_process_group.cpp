@@ -2,6 +2,7 @@
 #include "share/field/field_utils.hpp"
 
 #include "share/property_checks/field_nan_check.hpp"
+#include "share/util/eamxx_timing.hpp"
 
 #include <ekat_std_utils.hpp>
 #include <ekat_string_utils.hpp>
@@ -156,7 +157,9 @@ void AtmosphereProcessGroup::set_grids (const std::shared_ptr<const GridsManager
   // field is not exposed as a required field of the group.
 
   for (auto& atm_proc : m_atm_processes) {
+    start_timer("EAMxx::"+atm_proc->name()+"::set_grids");
     atm_proc->set_grids(grids_manager);
+    stop_timer("EAMxx::"+atm_proc->name()+"::set_grids");
 
     // Add inputs/outputs to the list of inputs of the group
     for (const auto& req : atm_proc->get_required_field_requests()) {

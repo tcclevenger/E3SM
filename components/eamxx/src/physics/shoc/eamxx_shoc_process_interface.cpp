@@ -2,6 +2,7 @@
 
 #include "share/property_checks/field_lower_bound_check.hpp"
 #include "share/property_checks/field_within_interval_check.hpp"
+#include "share/util/eamxx_timing.hpp"
 
 #include "eamxx_config.h" // for SCREAM_CIME_BUILD
 
@@ -501,11 +502,13 @@ void SHOCMacrophysics::run_impl (const double dt)
   const auto scan_policy    = TPF::get_thread_range_parallel_scan_team_policy(m_num_cols, nlev_packs);
   const auto default_policy = TPF::get_default_team_policy(m_num_cols, nlev_packs);
 
+  start_timer("EAMxx::shoc::preprocess");
   // Preprocessing of SHOC inputs. Kernel contains a parallel_scan,
   // so a special TeamPolicy is required.
   Kokkos::parallel_for("shoc_preprocess",
                        scan_policy,
                        shoc_preprocess);
+  stop_timer("EAMxx::shoc::preprocess");
   Kokkos::fence();
 
   auto wtracer_sfc = shoc_preprocess.wtracer_sfc;
@@ -528,6 +531,7 @@ void SHOCMacrophysics::run_impl (const double dt)
   // Reset internal WSM variables.
   workspace_mgr.reset_internals();
 
+  start_timer("EAMxx::shoc::shoc_main");
   // Run shoc main
   SHF::shoc_main(m_num_cols, m_num_levs, m_num_levs+1, m_npbl, m_nadv, m_num_tracers, dt,
                  workspace_mgr,runtime_options,input,input_output,output,history_output
@@ -535,11 +539,14 @@ void SHOCMacrophysics::run_impl (const double dt)
                  , temporaries
 #endif
                  );
+  stop_timer("EAMxx::shoc::shoc_main");
 
+  start_timer("EAMxx::shoc::postprocess");
   // Postprocessing of SHOC outputs
   Kokkos::parallel_for("shoc_postprocess",
                        default_policy,
                        shoc_postprocess);
+  stop_timer("EAMxx::shoc::postprocess");
   Kokkos::fence();
 
   // thl_sec is needed for ZM deep convection
