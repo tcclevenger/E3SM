@@ -3518,7 +3518,7 @@
         <arg name="ranks_per_node">-ppn {{ tasks_per_node }}</arg>
         <arg name="ranks_bind">--cpu-bind $ENV{RANKS_BIND}</arg>
         <arg name="threads_per_rank">-d $ENV{OMP_NUM_THREADS} $ENV{RLIMITS}</arg>
-        <arg name="gpu_maps">$ENV{GPU_TILE_COMPACT}</arg>
+        <arg name="gpu_maps">$ENV{GPU_TILE_COMPACT} vtune -collect gpu-hotspots -r VTune_results_2S --</arg>
       </arguments>
     </mpirun>
     <module_system type="module" allow_error="true">

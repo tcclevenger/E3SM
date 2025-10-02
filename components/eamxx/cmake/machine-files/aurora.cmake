@@ -7,7 +7,7 @@ set(EKAT_MPI_NP_FLAG "-np" CACHE STRING "" FORCE)
 set(EKAT_MPI_EXTRA_ARGS "--label --cpu-bind depth -envall" CACHE STRING "")
 set(EKAT_MPI_THREAD_FLAG "-d" CACHE STRING "")
 
-SET(SYCL_COMPILE_FLAGS "-std=c++17 -fsycl -fsycl-device-code-split=per_kernel -fno-sycl-id-queries-fit-in-int -fsycl-unnamed-lambda")
+SET(SYCL_COMPILE_FLAGS "-std=c++17 -fsycl -fsycl-device-code-split=per_kernel -fno-sycl-id-queries-fit-in-int -fsycl-unnamed-lambda -fdebug-info-for-profiling -gline-tables-only")
 SET(SYCL_LINK_FLAGS "-fsycl -fsycl-device-code-split=per_kernel -fsycl-targets=spir64_gen -Xsycl-target-backend \"-device 12.60.7\"")
 
 if (COMPILER MATCHES ".*gpu.*") # oneapi-ifxgpu
