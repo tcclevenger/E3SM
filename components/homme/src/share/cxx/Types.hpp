@@ -22,7 +22,11 @@
 namespace Homme {
 
 // Usual typedef for real scalar type
+#if HOMME_DOUBLE_PRECISION
 using Real = double;
+#else
+using Real = float;
+#endif
 using RCPtr = Real *const;
 using CRCPtr = const Real *const;
 using F90Ptr = Real *const; // Using this in a function signature emphasizes

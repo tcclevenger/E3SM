@@ -102,6 +102,14 @@ OPTION(IS_BIG_ENDIAN "Whether the machine is big endian" FALSE)
 #  ${HOMME_BINARY_DIR}/tests/compilerTests/
 #  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/compilerTests/isBigEndian.c)
 
+# Floating-point precision control for Homme reals.
+OPTION(HOMME_DOUBLE_PRECISION "Build Homme with double precision reals (OFF = single precision)" TRUE)
+IF (${HOMME_DOUBLE_PRECISION})
+  ADD_DEFINITIONS(-DHOMME_DOUBLE_PRECISION=1)
+ELSE ()
+  ADD_DEFINITIONS(-DHOMME_DOUBLE_PRECISION=0)
+ENDIF ()
+
 # Default use quad precision
 OPTION(HOMME_QUAD_PREC "Default to try to use quadruple precision" TRUE)
 
