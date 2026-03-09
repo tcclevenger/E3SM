@@ -16,10 +16,6 @@ module kinds
   use shr_kind_mod, only : SHR_KIND_I4, SHR_KIND_R4, SHR_KIND_R8, SHR_KIND_I8, SHR_KIND_CL
 #endif
 
-#ifndef HOMME_DOUBLE_PRECISION
-#define HOMME_DOUBLE_PRECISION 1
-#endif
-
 implicit none
 private
 !

@@ -11,7 +11,7 @@
 #include "compose_hommexx.hpp"
 
 extern "C" void
-sl_get_params(double* nu_q, double* hv_scaling, int* hv_q, int* hv_subcycle_q,
+sl_get_params(Real* nu_q, Real* hv_scaling, int* hv_q, int* hv_subcycle_q,
               int* limiter_option, int* cdr_check, int* geometry_type,
               int* trajectory_nsubstep, int* trajectory_nvelocity,
               int* diagnostics, bool* do_3d_turbulence);
@@ -46,9 +46,9 @@ void ComposeTransportImpl::setup () {
   m_geometry = Context::singleton().get<ElementsGeometry>();
   m_tracers = Context::singleton().get<Tracers>();
   m_sphere_ops = Context::singleton().get<SphereOperators>();
-  
+
   set_dp_tol();
-  
+
   nslot = calc_nslot(m_geometry.num_elems());
 }
 
@@ -200,7 +200,7 @@ void ComposeTransportImpl::init_boundary_exchanges () {
       be->set_diagnostics_level(sp.internal_diagnostics_level);
       be->set_buffers_manager(bm_exchange);
       be->set_num_fields(0, 0, m_data.hv_q);
-      if (i == 0) 
+      if (i == 0)
         be->register_field(m_tracers.qtens_biharmonic, m_data.hv_q, 0);
       else
         be->register_field(m_tracers.Q, m_data.hv_q, 0);
@@ -216,7 +216,7 @@ void ComposeTransportImpl::run (const TimeLevel& tl, const Real dt) {
     calc_trajectory(tl.np1, dt);
   else
     calc_enhanced_trajectory(tl.nstep, tl.np1, dt);
-  
+
   GPTLstart("compose_isl");
   homme::compose::advect(tl.np1, tl.n0_qdp, tl.np1_qdp);
   Kokkos::fence();
@@ -249,12 +249,12 @@ void ComposeTransportImpl::run (const TimeLevel& tl, const Real dt) {
     homme::compose::property_preserve_local(m_data.limiter_option);
     Kokkos::fence();
   }
-  GPTLstop("compose_cedr_local");    
+  GPTLstop("compose_cedr_local");
 
   const auto np1 = tl.np1;
   const auto np1_qdp = tl.np1_qdp;
   const auto qsize = m_data.qsize;
-  
+
   if ( ! run_cedr) {
     // For analysis purposes, property preservation was not run. Need to convert
     // Q to qdp.
@@ -269,7 +269,7 @@ void ComposeTransportImpl::run (const TimeLevel& tl, const Real dt) {
     };
     launch_ie_q_ij_nlev<num_lev_pack>(qsize, f);
   }
-  
+
   { // DSS qdp and omega
     GPTLstart("compose_dss_q");
     const auto qdp = m_tracers.qdp;
@@ -291,14 +291,14 @@ void ComposeTransportImpl::run (const TimeLevel& tl, const Real dt) {
     Kokkos::fence();
     GPTLstop("compose_dss_q");
   }
-  
+
   if (m_data.cdr_check) {
     GPTLstart("compose_cedr_check");
     homme::compose::property_preserve_check();
     Kokkos::fence();
     GPTLstop("compose_cedr_check");
   }
-  
+
   GPTLstop("compose_transport");
 }
 
