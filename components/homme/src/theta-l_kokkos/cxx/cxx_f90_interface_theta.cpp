@@ -42,12 +42,12 @@ void init_simulation_params_c (const int& remap_alg, const int& limiter_option, 
                                const int& time_step_type, const int& qsize, const int& state_frequency,
                                const Real& nu, const Real& nu_p, const Real& nu_q, const Real& nu_s, const Real& nu_div, const Real& nu_top,
                                const int& hypervis_order, const int& hypervis_subcycle, const int& hypervis_subcycle_tom,
-                               const double& hypervis_scaling, const double& dcmip16_mu,
+                               const Real& hypervis_scaling, const Real& dcmip16_mu,
                                const int& ftype, const int& theta_adv_form, const int& prescribed_wind, const int& use_moisture, const int& disable_diagnostics,
                                const int& use_cpstar, const int& transport_alg, const int& theta_hydrostatic_mode, const char** test_case,
                                const int& dt_remap_factor, const int& dt_tracer_factor,
-                               const double& scale_factor, const double& laplacian_rigid_factor, const int& nsplit, const int& pgrad_correction,
-                               const double& dp3d_thresh, const double& vtheta_thresh, const int& internal_diagnostics_level)
+                               const Real& scale_factor, const Real& laplacian_rigid_factor, const int& nsplit, const int& pgrad_correction,
+                               const Real& dp3d_thresh, const Real& vtheta_thresh, const int& internal_diagnostics_level)
 {
 
   // Check that the simulation options are supported. This helps us in the future, since we
@@ -64,11 +64,11 @@ void init_simulation_params_c (const int& remap_alg, const int& limiter_option, 
     Errors::check_option("init_simulation_params_c","limiter_option",limiter_option,{8,9});
   }
   Errors::check_option("init_simulation_params_c","ftype",ftype, {-1, 0, 2});
-  Errors::check_option("init_simulation_params_c","nu_p",nu_p,0.0,Errors::ComparisonOp::GT);
-  Errors::check_option("init_simulation_params_c","nu",nu,0.0,Errors::ComparisonOp::GT);
-  Errors::check_option("init_simulation_params_c","dp3d_thresh",dp3d_thresh,0.0,Errors::ComparisonOp::GT);
-  Errors::check_option("init_simulation_params_c","vtheta_thresh",vtheta_thresh,0.0,Errors::ComparisonOp::GT);
-  Errors::check_option("init_simulation_params_c","nu_div",nu_div,0.0,Errors::ComparisonOp::GT);
+  Errors::check_option("init_simulation_params_c","nu_p",nu_p,Real(0.0),Errors::ComparisonOp::GT);
+  Errors::check_option("init_simulation_params_c","nu",nu,Real(0.0),Errors::ComparisonOp::GT);
+  Errors::check_option("init_simulation_params_c","dp3d_thresh",dp3d_thresh,Real(0.0),Errors::ComparisonOp::GT);
+  Errors::check_option("init_simulation_params_c","vtheta_thresh",vtheta_thresh,Real(0.0),Errors::ComparisonOp::GT);
+  Errors::check_option("init_simulation_params_c","nu_div",nu_div,Real(0.0),Errors::ComparisonOp::GT);
   Errors::check_option("init_simulation_params_c","theta_advection_form",theta_adv_form,{0,1});
 #ifndef SCREAM
   Errors::check_option("init_simulation_params_c","nsplit",nsplit,1,Errors::ComparisonOp::GE);
