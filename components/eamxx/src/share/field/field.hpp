@@ -335,23 +335,20 @@ protected:
     }
   }
 
-  // These SFINAE impl of get_subview are needed since subview_1 does not
-  // exist for rank2 (or less) views.
-  template<HostOrDevice HD, typename T, int N>
-  std::enable_if_t<(N>2),
-       get_view_type<data_nd_t<T,N-1>,HD>>
-  get_subview_1 (const get_view_type<data_nd_t<T,N>,HD>& v, const int k) const {
-    return ekat::subview_1(v,k);
-  }
+  // // These SFINAE impl of get_subview are needed since subview_1 does not retain layout right for all but rank 3 views.
+  // template<HostOrDevice HD, typename T, int N>
+  // std::enable_if_t<(N==3),
+  //      get_view_type<data_nd_t<T,N-1>,HD>>
+  // get_subview_1 (const get_view_type<data_nd_t<T,N>,HD>& v, const int k) const {
+  //   return ekat::subview_1(v,k);
+  // }
 
-  template<HostOrDevice HD, typename T, int N>
-  std::enable_if_t<(N<=2),
-       get_view_type<data_nd_t<T,N-1>,HD>>
-  get_subview_1 (const get_view_type<data_nd_t<T,N>,HD>&, const int) const {
-    EKAT_ERROR_MSG ("Error! Cannot subview a rank2 view along the second "
-                    "dimension without losing LayoutRight.\n");
-    return get_view_type<data_nd_t<T,N-1>,HD>();
-  }
+  // template<HostOrDevice HD, typename T, int N>
+  //   std::enable_if_t<(N==2 || N>3),
+  //      get_strided_view_type<data_nd_t<T,N-1>,HD>>
+  // get_subview_1 (const get_view_type<data_nd_t<T,N>,HD>& v, const int k) const {
+  //   return ekat::subview_1(v,k);
+  // }
 
   template<HostOrDevice HD,typename T,int N>
   auto get_ND_view () const

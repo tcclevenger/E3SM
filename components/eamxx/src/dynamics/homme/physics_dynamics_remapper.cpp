@@ -413,6 +413,7 @@ setup_boundary_exchange () {
         break;
       case LayoutType::Vector3D:
         if (dims.back()==HOMMEXX_NUM_PHYSICAL_LEV) {
+          printf("%s\n",m_tgt_fields[i].get_header().get_identifier().name().c_str());
           m_be->register_field(getHommeView<Scalar**[NP][NP][NLEV]>(m_tgt_fields[i]),dims[1],0);
         } else {
           m_be->register_field(getHommeView<Scalar**[NP][NP][NINT]>(m_tgt_fields[i]),dims[1],0);

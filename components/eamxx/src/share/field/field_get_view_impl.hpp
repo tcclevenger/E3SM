@@ -179,12 +179,22 @@ auto Field::get_ND_view () const
         "Error! Cannot subview a rank-2 (or less) view along 2nd dimension "
         "without losing LayoutRight.\n");
 
-    // Use SFINAE-ed get_subview helper function to pick correct
-    // subview impl. If N+1<=2 and idim!=0, the code craps out in the check above.
+    if (not (idim==0 || N==2)) {
+      assert(false);
+    }
+    EKAT_REQUIRE_MSG (idim==0 || N==2,
+        "Error! Subview along 2nd dimension only results in non-strided views for rank-3 fields. "
+        "Instead, use get_strided_view().\n");
+
     if (idim==0) {
       return ekat::subview(v_np1,k);
     } else {
-      return get_subview_1<HD,T,N+1>(v_np1,k);
+      if constexpr (N+1<2) {
+        EKAT_ERROR_MSG("Internal Error! Cannot subview along 2nd dimension for rank-0 or 1 field.\n");
+        return get_view_type<data_nd_t<T,N>,HD>();
+      } else {
+        return ekat::subview_1(v_np1,k);
+      }
     }
   }
 
