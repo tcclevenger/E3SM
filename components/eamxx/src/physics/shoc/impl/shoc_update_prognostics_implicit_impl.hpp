@@ -203,6 +203,7 @@ void Functions<S,D>::update_prognostics_implicit(
   // march um_pert and vm_pert one step forward using implicit solver
   {
     // Call decomp for momentum variables
+    team.team_barrier();
     vd_shoc_decomp(team, nlev, tk_zi, tmpi, rdp_zt, dtime, ksrf_pert, du, dl, d);
 
     // Solve
@@ -246,8 +247,8 @@ void Functions<S,D>::update_prognostics_implicit(
   // Release temporary variables from the workspace
   team.team_barrier();
   workspace.template release_macro_block<Scalar>(tracers_slot,n_trac_slots);
-  workspace.template release_macro_block<Scalar>(wind_slot,n_wind_slots);
   workspace.template release_macro_block<Scalar>(wind_pert_slot,n_wind_slots);
+  workspace.template release_macro_block<Scalar>(wind_slot,n_wind_slots);
   workspace.template release_many_contiguous<3,Scalar>(
     {&du_workspace, &dl_workspace, &d_workspace});
   workspace.template release_many_contiguous<5>(
