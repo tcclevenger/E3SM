@@ -40,7 +40,7 @@ extern "C"
 
 void init_simulation_params_c (const int& remap_alg, const int& limiter_option, const int& rsplit, const int& qsplit,
                                const int& time_step_type, const int& qsize, const int& state_frequency,
-                               const Real& nu, const Real& nu_p, const Real& nu_q, const Real& nu_s, const Real& nu_div, const Real& nu_top,
+                               const double& nu, const double& nu_p, const double& nu_q, const double& nu_s, const double& nu_div, const double& nu_top,
                                const int& hypervis_order, const int& hypervis_subcycle, const int& hypervis_subcycle_tom,
                                const Real& hypervis_scaling, const Real& dcmip16_mu,
                                const int& ftype, const int& theta_adv_form, const int& prescribed_wind, const int& use_moisture, const int& disable_diagnostics,
@@ -65,11 +65,11 @@ void init_simulation_params_c (const int& remap_alg, const int& limiter_option, 
     Errors::check_option("init_simulation_params_c","limiter_option",limiter_option,{8,9});
   }
   Errors::check_option("init_simulation_params_c","ftype",ftype, {-1, 0, 2});
-  Errors::check_option("init_simulation_params_c","nu_p",nu_p,Real(0.0),Errors::ComparisonOp::GT);
-  Errors::check_option("init_simulation_params_c","nu",nu,Real(0.0),Errors::ComparisonOp::GT);
-  Errors::check_option("init_simulation_params_c","dp3d_thresh",dp3d_thresh,Real(0.0),Errors::ComparisonOp::GT);
-  Errors::check_option("init_simulation_params_c","vtheta_thresh",vtheta_thresh,Real(0.0),Errors::ComparisonOp::GT);
-  Errors::check_option("init_simulation_params_c","nu_div",nu_div,Real(0.0),Errors::ComparisonOp::GT);
+  Errors::check_option("init_simulation_params_c","nu_p",sp(nu_p),sp(0.0),Errors::ComparisonOp::GT);
+  Errors::check_option("init_simulation_params_c","nu",sp(nu),sp(0.0),Errors::ComparisonOp::GT);
+  Errors::check_option("init_simulation_params_c","dp3d_thresh",sp(dp3d_thresh),sp(0.0),Errors::ComparisonOp::GT);
+  Errors::check_option("init_simulation_params_c","vtheta_thresh",sp(vtheta_thresh),sp(0.0),Errors::ComparisonOp::GT);
+  Errors::check_option("init_simulation_params_c","nu_div",sp(nu_div),sp(0.0),Errors::ComparisonOp::GT);
   Errors::check_option("init_simulation_params_c","theta_advection_form",theta_adv_form,{0,1});
 #ifndef SCREAM
   Errors::check_option("init_simulation_params_c","nsplit",nsplit,1,Errors::ComparisonOp::GE);
@@ -103,28 +103,28 @@ void init_simulation_params_c (const int& remap_alg, const int& limiter_option, 
   params.prescribed_wind               = prescribed_wind;
   params.state_frequency               = state_frequency;
   params.qsize                         = qsize;
-  params.nu                            = nu;
-  params.nu_p                          = nu_p;
-  params.nu_q                          = nu_q;
-  params.nu_s                          = nu_s;
-  params.nu_div                        = nu_div;
-  params.nu_top                        = nu_top;
+  params.nu                            = sp(nu);
+  params.nu_p                          = sp(nu_p);
+  params.nu_q                          = sp(nu_q);
+  params.nu_s                          = sp(nu_s);
+  params.nu_div                        = sp(nu_div);
+  params.nu_top                        = sp(nu_top);
   params.hypervis_order                = hypervis_order;
   params.hypervis_subcycle             = hypervis_subcycle;
   params.hypervis_subcycle_tom         = hypervis_subcycle_tom;
-  params.hypervis_scaling              = hypervis_scaling;
+  params.hypervis_scaling              = sp(hypervis_scaling);
   params.disable_diagnostics           = (bool)disable_diagnostics;
   params.use_moisture                  = (bool)use_moisture;
   params.use_cpstar                    = (bool)use_cpstar;
   params.transport_alg                 = transport_alg;
   params.theta_hydrostatic_mode        = (bool)theta_hydrostatic_mode;
-  params.dcmip16_mu                    = dcmip16_mu;
+  params.dcmip16_mu                    = sp(dcmip16_mu);
   params.nsplit                        = nsplit;
-  params.scale_factor                  = scale_factor;
-  params.laplacian_rigid_factor        = laplacian_rigid_factor;
+  params.scale_factor                  = sp(scale_factor);
+  params.laplacian_rigid_factor        = sp(laplacian_rigid_factor);
   params.pgrad_correction              = (bool)pgrad_correction;
-  params.dp3d_thresh                   = dp3d_thresh;
-  params.vtheta_thresh                 = vtheta_thresh;
+  params.dp3d_thresh                   = sp(dp3d_thresh);
+  params.vtheta_thresh                 = sp(vtheta_thresh);
   params.internal_diagnostics_level    = internal_diagnostics_level;
   params.do_3d_turbulence              = (bool)do_3d_turbulence;
 
@@ -459,7 +459,7 @@ void init_elements_2d_c (const int& ie,
                          CF90Ptr& spheremp, CF90Ptr& rspheremp,
                          CF90Ptr& metdet, CF90Ptr& metinv,
                          CF90Ptr &tensorvisc, CF90Ptr &vec_sph2cart,
-                         double* sphere_cart_vec, double* sphere_latlon_vec)
+                         Real* sphere_cart_vec, Real* sphere_latlon_vec)
 {
   auto& c = Context::singleton();
   Elements& e = c.get<Elements> ();
@@ -480,7 +480,7 @@ void init_geopotential_c (const int& ie,
   // Note: yes, we *could* compute gradphis from grad, but at the time of this call,
   //       we do not yet have the SphereOperators functor initialized. For simplicity,
   //       we just require gradphis as input, and copy it manually.
-  HostViewUnmanaged<const Real [2][NP][NP]> h_gradphis(gradphis);
+  HostViewUnmanaged<const double [2][NP][NP]> h_gradphis(gradphis);
   sync_to_device(h_gradphis,Homme::subview(geo.m_gradphis,ie));
 }
 

@@ -28,7 +28,7 @@ void ElementsGeometry::init(const int num_elems, const bool consthv, const bool 
   assert(scale_factor > 0);
   m_scale_factor = scale_factor;
   m_laplacian_rigid_factor = laplacian_rigid_factor < 0 ? 1/scale_factor : laplacian_rigid_factor;
-  
+
   // Coriolis force
   m_fcor = ExecViewManaged<Real * [NP][NP]>("FCOR", m_num_elems);
 
@@ -47,7 +47,7 @@ void ElementsGeometry::init(const int num_elems, const bool consthv, const bool 
 
   m_phis     = ExecViewManaged<Real *    [NP][NP]>("PHIS",          m_num_elems);
 
-  //matrix D and its derivatives 
+  //matrix D and its derivatives
   m_d    = ExecViewManaged<Real * [2][2][NP][NP]>("matrix D",                   m_num_elems);
   m_dinv = ExecViewManaged<Real * [2][2][NP][NP]>("DInv - inverse of matrix D", m_num_elems);
 
@@ -78,9 +78,9 @@ set_elem_data (const int ie,
   using TensorView   = ExecViewUnmanaged<Real [2][2][NP][NP]>;
   using Tensor23View = ExecViewUnmanaged<Real [2][3][NP][NP]>;
 
-  using ScalarViewF90   = HostViewUnmanaged<const Real [NP][NP]>;
-  using TensorViewF90   = HostViewUnmanaged<const Real [2][2][NP][NP]>;
-  using Tensor23ViewF90 = HostViewUnmanaged<const Real [2][3][NP][NP]>;
+  using ScalarViewF90   = HostViewUnmanaged<const double [NP][NP]>;
+  using TensorViewF90   = HostViewUnmanaged<const double [2][2][NP][NP]>;
+  using Tensor23ViewF90 = HostViewUnmanaged<const double [2][3][NP][NP]>;
 
   ScalarView::HostMirror h_fcor      = Kokkos::create_mirror_view(Homme::subview(m_fcor,ie));
   ScalarView::HostMirror h_metdet    = Kokkos::create_mirror_view(Homme::subview(m_metdet,ie));
@@ -106,7 +106,7 @@ set_elem_data (const int ie,
   TensorViewF90 h_dinv_f90         (Dinv);
   TensorViewF90 h_tensorvisc_f90   (tensorvisc);
   Tensor23ViewF90 h_vec_sph2cart_f90 (vec_sph2cart);
-  
+
   // 2d scalars
   for (int igp = 0; igp < NP; ++igp) {
     for (int jgp = 0; jgp < NP; ++jgp) {
@@ -129,7 +129,7 @@ set_elem_data (const int ie,
       }
     }
   }
-  
+
   if(!consthv) {
     for (int idim = 0; idim < 2; ++idim) {
       for (int jdim = 0; jdim < 2; ++jdim) {
@@ -182,7 +182,7 @@ set_phis (const int ie, CF90Ptr& phis) {
   assert (ie>=0 && ie<m_num_elems);
 
   using ScalarView    = ExecViewUnmanaged<Real [NP][NP]>;
-  using ScalarViewF90 = HostViewUnmanaged<const Real [NP][NP]>;
+  using ScalarViewF90 = HostViewUnmanaged<const double [NP][NP]>;
 
   ScalarViewF90           h_phis_f90 (phis);
   ScalarView::HostMirror  h_phis = Kokkos::create_mirror_view(Homme::subview(m_phis,ie));

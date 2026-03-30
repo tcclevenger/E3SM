@@ -23,6 +23,7 @@
 namespace siqk {
 using homme::Int;
 using homme::Real;
+using homme::sp;
 
 namespace ko = Kokkos;
 
@@ -199,7 +200,7 @@ struct PlaneGeometry {
   }
   template <typename V> KOKKOS_INLINE_FUNCTION
   static void normalize (V v) {
-    scale(1.0/std::sqrt(norm2(v)), v);
+    scale(sp(1.0)/std::sqrt(norm2(v)), v);
   }
   template <typename CV, typename V> KOKKOS_INLINE_FUNCTION
   static void edge_normal (const CV e1, const CV e2, V en) {
@@ -236,7 +237,7 @@ struct SphereGeometry {
   }
   template <typename V> KOKKOS_INLINE_FUNCTION
   static void normalize (V v) {
-    scale(1.0/std::sqrt(norm2(v)), v);
+    scale(sp(1.0)/std::sqrt(norm2(v)), v);
   }
   template <typename CVC, typename CVA, typename CVB> KOKKOS_INLINE_FUNCTION
   static Real dot_c_amb (const CVC c, const CVA a, const CVB b) {
@@ -327,8 +328,8 @@ template <typename ConstVec3sT, typename Quad>
 KOKKOS_INLINE_FUNCTION
 void calc_ref_to_bilinear (const ConstVec3sT& p, const Quad& e,
                            Real a, Real b, Real q[3]) {
-  a = 0.5*(a + 1);
-  b = 0.5*(b + 1);
+  a = sp(0.5)*(a + 1);
+  b = sp(0.5)*(b + 1);
   for (Int i = 0; i < 3; ++i) {
     Real t1, t2, t3, t4;
     impl::calc_T_row(p, e, i, t1, t2, t3, t4);
@@ -357,8 +358,8 @@ template <typename ConstVec3sT, typename Quad>
 KOKKOS_INLINE_FUNCTION
 void calc_Jacobian (const ConstVec3sT& p, const Quad& e, Real a, Real b,
                     Real J[6], const bool sphere = true) {
-  a = 0.5*(a + 1);
-  b = 0.5*(b + 1);  
+  a = sp(0.5)*(a + 1);
+  b = sp(0.5)*(b + 1);
   Real r[3];
   for (Int i = 0; i < 3; ++i) {
     Real t1, t2, t3, t4;

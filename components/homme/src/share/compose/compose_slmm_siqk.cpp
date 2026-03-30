@@ -9,7 +9,7 @@ struct Info {
 };
 
 class TestSphereToRefKernel {
-  const Real a_test[9] = {-0.1, -1e-16, 0, 1e-15, 0.1, 0.7, 1, 1-1e-14, 1.1};
+  const Real a_test[9] = {sp(-0.1), -1e-16, 0, 1e-15, sp(0.1), sp(0.7), 1, 1-1e-14, sp(1.1)};
   const Int n_a_test = sizeof(a_test)/sizeof(*a_test);
 
   const Real tol_;

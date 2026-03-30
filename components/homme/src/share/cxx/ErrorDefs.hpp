@@ -93,6 +93,7 @@ void check_option (const std::string& location,
                    const T& value, const T& ref_value,
                    const ComparisonOp& relation)
 {
+  printf("%s: %f <-> %f\n", option.c_str(), value, ref_value);
   bool bad_inputs = false;
   switch (relation) {
     case ComparisonOp::EQ: if (value!=ref_value) { bad_inputs = true; } break;

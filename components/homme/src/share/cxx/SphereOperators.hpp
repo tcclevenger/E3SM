@@ -41,7 +41,7 @@ class SphereOperators
 
   template<int NL>
   using vector_buf = ExecViewUnmanaged<Scalar[2][NP][NP][NL]>;
-  
+
   // std::min is constexpr only from c++14 on.
   template<int M, int N>
   struct Min {

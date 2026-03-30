@@ -101,13 +101,13 @@ void GllFvRemapImpl::init_boundary_exchanges () {
   assert(m_data.qsize > 0); // after reset() called
 
   auto& c = Context::singleton();
-  auto& sp = c.get<SimulationParams>();
+  auto& sim_params = c.get<SimulationParams>();
 
   {
     auto bm_exchange = c.get<MpiBuffersManagerMap>()[MPI_EXCHANGE];
     m_dss_be = std::make_shared<BoundaryExchange>();
     m_dss_be->set_label("GllFvRemap-DSS");
-    m_dss_be->set_diagnostics_level(sp.internal_diagnostics_level);
+    m_dss_be->set_diagnostics_level(sim_params.internal_diagnostics_level);
     m_dss_be->set_buffers_manager(bm_exchange);
     m_dss_be->set_num_fields(0, 0, m_data.n_dss_fld);
     m_dss_be->register_field(m_tracers.fq, m_data.qsize, 0);
@@ -121,7 +121,7 @@ void GllFvRemapImpl::init_boundary_exchanges () {
     m_extrema_be = std::make_shared<BoundaryExchange>();
     BoundaryExchange& be = *m_extrema_be;
     be.set_label("GllFvRemap-extrema");
-    be.set_diagnostics_level(sp.internal_diagnostics_level);
+    be.set_diagnostics_level(sim_params.internal_diagnostics_level);
     be.set_buffers_manager(bm_exchange_minmax);
     be.set_num_fields(m_data.qsize, 0, 0);
     be.register_min_max_fields(m_tracers.qlim, m_data.qsize, 0);
@@ -142,11 +142,11 @@ void GllFvRemapImpl
     Errors::runtime_abort("GllFvRemap: In physics grid configuration nf x nf,"
                           " nf must be > 1.", Errors::err_not_implemented);
 
-  auto& sp = Context::singleton().get<SimulationParams>();
-  m_data.use_moisture = sp.use_moisture;
+  auto& sim_params = Context::singleton().get<SimulationParams>();
+  m_data.use_moisture = sim_params.use_moisture;
   // Only in the unit test gllfvremap_ut does theta_hydrostatic_mode not already
-  // == sp.theta_hydrostatic_mode.
-  m_data.theta_hydrostatic_mode = sp.theta_hydrostatic_mode = theta_hydrostatic_mode;
+  // == sim_params.theta_hydrostatic_mode.
+  m_data.theta_hydrostatic_mode = sim_params.theta_hydrostatic_mode = theta_hydrostatic_mode;
 
   const int nf2 = nf*nf, nf2_max = nf_max*nf_max;
   auto& d = m_data;
@@ -159,7 +159,7 @@ void GllFvRemapImpl
     fD_f   (D_f_r,    nf2, 2, 2, d.nelemd),
     fDinv_f(Dinv_f_r, nf2, 2, 2, d.nelemd);
 
-  d.w_ff = Real(4)/nf2;
+  d.w_ff = sp(4)/nf2;
 
   d.g2f_remapd = decltype(d.g2f_remapd)("g2f_remapd", nf2, np2);
   d.f2g_remapd = decltype(d.f2g_remapd)("f2g_remapd", np2, nf2);
@@ -217,7 +217,7 @@ calc_extrema (const KernelVariables& kv, const int n, const int nlev,
               const TA& q, const TE& qmin, const TE& qmax) {
   const int packn = GllFvRemapImpl::packn;
   GllFvRemapImpl::team_parallel_for_with_linear_index(
-    kv.team, nlev, 
+    kv.team, nlev,
     [&] (const int k) {
       auto& qmink = qmin(k);
       auto& qmaxk = qmax(k);
@@ -229,7 +229,7 @@ calc_extrema (const KernelVariables& kv, const int n, const int nlev,
         VECTOR_SIMD_LOOP for (int s = 0; s < packn; ++s)
           qmaxk[s] = max(qmaxk[s], qik[s]);
       }
-    });  
+    });
 }
 
 template <typename TA>
@@ -237,7 +237,7 @@ static KOKKOS_FUNCTION void
 calc_extrema_real1 (const KernelVariables& kv, const int n, const TA& q,
                     Real& qmin, Real& qmax) {
   GllFvRemapImpl::team_parallel_for_with_linear_index(
-    kv.team, 1, 
+    kv.team, 1,
     [&] (const int k) {
       qmin = qmax = q(0);
       for (int i = 1; i < n; ++i) {
@@ -245,7 +245,7 @@ calc_extrema_real1 (const KernelVariables& kv, const int n, const TA& q,
         qmin = min(qmin, qi);
         qmax = max(qmax, qi);
       }
-    });  
+    });
 }
 
 // qmin,max are already initialized with values. Augment these using q.
@@ -255,7 +255,7 @@ augment_extrema (const KernelVariables& kv, const int n, const int nlev,
                  const TA& q, const TE& qmin, const TE& qmax) {
   const int packn = GllFvRemapImpl::packn;
   GllFvRemapImpl::team_parallel_for_with_linear_index(
-    kv.team, nlev, 
+    kv.team, nlev,
     [&] (const int k) {
       auto& qmink = qmin(k);
       auto& qmaxk = qmax(k);
@@ -266,7 +266,7 @@ augment_extrema (const KernelVariables& kv, const int n, const int nlev,
         VECTOR_SIMD_LOOP for (int s = 0; s < packn; ++s)
           qmaxk[s] = max(qmaxk[s], qik[s]);
       }
-    });  
+    });
 }
 
 // Remap a mixing ratio conservatively.
@@ -394,7 +394,7 @@ void GllFvRemapImpl
   const auto D_f = m_data.D_f;
   const auto dp_fv = m_derived.m_divdp_proj; // store dp_fv between kernels
   const auto hvcoord = m_hvcoord;
-  
+
   const bool use_moisture = m_data.use_moisture;
   const bool theta_hydrostatic_mode = m_data.theta_hydrostatic_mode;
 
@@ -405,7 +405,7 @@ void GllFvRemapImpl
     dp_fv_out = VPhys2T(real2pack(dp), dp.extent_int(0), dp.extent_int(1),
                         dp.extent_int(2)/packn);
   }
-  
+
   EquationOfState eos; eos.init(theta_hydrostatic_mode, hvcoord);
   ElementOps ops; ops.init(hvcoord);
 
@@ -423,7 +423,7 @@ void GllFvRemapImpl
 
     const auto ttrf = Kokkos::TeamThreadRange(kv.team, nf2);
     const auto tvr = Kokkos::ThreadVectorRange(kv.team, nlevpk);
-    
+
     const evucr1 fv_metdet_ie(&fv_metdet(ie,0), nf2),
       gll_metdet_ie(&gll_metdet(ie,0,0), np2);
 
@@ -454,7 +454,7 @@ void GllFvRemapImpl
 
     { // T
       const auto ttrg = Kokkos::TeamThreadRange(kv.team, np2);
-      
+
       const EVU<Scalar[NP][NP][NUM_LEV]> w1g(rw1.data()), w2g(rw2.data()), w3g(&r2w(0,0,0,0)),
         w4g(&r2w(1,0,0,0));
       const EVU<Scalar[NP][NP][NUM_LEV_P]> w1gp(rw1.data());
@@ -545,7 +545,7 @@ void GllFvRemapImpl
     const evucr1 fv_metdet_ie(&fv_metdet(ie,0), nf2),
       gll_metdet_ie(&gll_metdet(ie,0,0), np2);
     const EVU<const Scalar**> dp_fv_ie(&dp_fv(ie,0,0,0), nf2, nlevpk);
-    
+
     // q
     g2f_mixing_ratio(
       kv, np2, nf2, nlevpk, g2f_remapd, gll_metdet_ie, w_ff, fv_metdet_ie,
@@ -627,7 +627,7 @@ run_fv_phys_to_dyn (const int timeidx, const CPhys2T& Ts, const CPhys3T& uvs,
     const auto rw1 = Kokkos::subview(buf10, kv.team_idx, all, all, all);
     const auto r2w = Kokkos::subview(buf20, kv.team_idx, all, all, all, all);
     const EVU<Real*> rw1s(pack2real(rw1), nreal_per_slot1);
-    
+
     const evucr1 fv_metdet_ie(&fv_metdet(ie,0), nf2),
       gll_metdet_ie(&gll_metdet(ie,0,0), np2);
 
@@ -886,7 +886,7 @@ void GllFvRemapImpl
   const auto g2f_remapd = m_data.g2f_remapd;
   const auto dp_fv = m_derived.m_divdp_proj; // store dp_fv between kernels
   const auto hvcoord = m_hvcoord;
-  
+
   ElementOps ops; ops.init(hvcoord);
 
   // dp
@@ -898,7 +898,7 @@ void GllFvRemapImpl
     const auto all = Kokkos::ALL();
     const auto rw1 = Kokkos::subview(buf10, kv.team_idx, all, all, all);
     const EVU<Real*> rw1s(pack2real(rw1), nreal_per_slot1);
-    
+
     const evucr1 fv_metdet_ie(&fv_metdet(ie,0), nf2),
       gll_metdet_ie(&gll_metdet(ie,0,0), np2);
 
@@ -930,7 +930,7 @@ void GllFvRemapImpl
     const evucr1 fv_metdet_ie(&fv_metdet(ie,0), nf2),
       gll_metdet_ie(&gll_metdet(ie,0,0), np2);
     const EVU<const Scalar**> dp_fv_ie(&dp_fv(ie,0,0,0), nf2, nlevpk);
-    
+
     g2f_mixing_ratio(
       kv, np2, nf2, nlevpk, g2f_remapd, gll_metdet_ie, w_ff, fv_metdet_ie,
       evucs_np2_nlev(&dp_g(ie,timeidx,0,0,0)), dp_fv_ie, evucs_np2_nlev(&q_dyn(ie,iq,0,0)),
@@ -939,7 +939,7 @@ void GllFvRemapImpl
   };
   Kokkos::fence();
   Kokkos::parallel_for(tp_ne_nq, feq);
-#endif  
+#endif
 }
 
 } // namespace Homme

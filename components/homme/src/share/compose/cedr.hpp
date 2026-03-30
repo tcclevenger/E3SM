@@ -5,13 +5,29 @@
 #define INCLUDE_CEDR_HPP
 
 #include "cedr_kokkos.hpp"
+#include "../cxx/Config.hpp"
 
 // Communication-Efficient Constrained Density Reconstructors
 namespace cedr {
 typedef int Int;
 typedef long int Long;
 typedef std::size_t Size;
+
+#if HOMMEXX_SINGLE_PRECISION
+typedef float Real;
+#else
 typedef double Real;
+#endif
+
+/*
+ * Utility function for handling floating point literals,
+ * so that they match the hommexx precision.
+ */
+template<typename T> KOKKOS_INLINE_FUNCTION
+constexpr typename std::enable_if<std::is_arithmetic<T>::value,Real>::type
+sp (const T val) {
+  return Real(val);
+}
 
 // CDRs in general implement
 // * tracer mass, Qm, conservation;

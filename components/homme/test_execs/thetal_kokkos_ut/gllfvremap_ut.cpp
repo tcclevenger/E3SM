@@ -86,14 +86,14 @@ static void clean (HybridVCoord& h) {
   for (int i = 0; i < n; ++i) bi(i) = 0;
   for (int i = 0; i < nh; ++i) {
     assert(nh0+i < n);
-    const Real a = Real(i)/(nh-1);
+    const Real a = sp(i)/(nh-1);
     bi(nh0+i) = (1-a)*0.02 + a*1;
   }
   assert(bi(n-1) == 1);
 
   Real etai[n];
   for (int i = 0; i < n; ++i) {
-    const Real a = Real(i)/(n-1);
+    const Real a = sp(i)/(n-1);
     etai[i] = (1-a)*0.0001 + a*1;
   }
 
@@ -138,7 +138,7 @@ void fill (Random& r, const V& a, const Real scale = 1,
     for (int j = 0; j < a.extent_int(1); ++j)
       for (int k = 0; k < a.extent_int(2); ++k)
         for (int s = 0; s < VECTOR_SIZE; ++s)
-          am(i,j,k)[s] = scale*r.urrng(-1,1); 
+          am(i,j,k)[s] = scale*r.urrng(-1,1);
   deep_copy(a, am);
 }
 
@@ -151,7 +151,7 @@ void fill (Random& r, const V& a,
       for (int k = 0; k < a.extent_int(2); ++k)
         for (int l = 0; l < a.extent_int(3); ++l)
           for (int s = 0; s < VECTOR_SIZE; ++s)
-            am(i,j,k,l)[s] = r.urrng(-1,1); 
+            am(i,j,k,l)[s] = r.urrng(-1,1);
   deep_copy(a, am);
 }
 
@@ -206,7 +206,7 @@ struct Session {
     e = c.get_ptr<Elements>();
     c.create<TimeLevel>();
 
-    init_geometry_f90();    
+    init_geometry_f90();
     auto& geo = c.get<ElementsGeometry>();
 
     auto& sphop = c.create<SphereOperators>();
@@ -316,9 +316,9 @@ static bool equal (const Real& a, const Real& b,
 static void test_calc_dp_fv (Random& r, const HybridVCoord& hvcoord) {
   using Kokkos::deep_copy;
   using g = GllFvRemapImpl;
-  
+
   const int nf = 3, ncol = nf*nf;
-  
+
   CA1d ps_f90("ps", ncol);
   CA2d dp_fv_f90("dp_fv", g::num_phys_lev, ncol);
   for (int i = 0; i < ncol; ++i) ps_f90(i) = r.urrng(0.9e5, 1.05e5);
@@ -336,7 +336,7 @@ static void test_calc_dp_fv (Random& r, const HybridVCoord& hvcoord) {
     });
   const ExecViewUnmanaged<Real**> dp_fv_d(g::pack2real(dp_fv_p), ncol, g::num_lev_aligned);
   const auto dp_fv_h = cmvdc(dp_fv_d);
-  
+
   for (int i = 0; i < ncol; ++i)
     for (int k = 0; k < g::num_phys_lev; ++k)
       REQUIRE(equal(dp_fv_f90(k,i), dp_fv_h(i,k)));
@@ -370,7 +370,7 @@ static void sfwd_remapd (const int m, const int n, const Real* A,
     const int os = d*m;
     for (int i = 0; i < m; ++i)
       y[os+i] = D[4*i+2*d]*wy[i] + D[4*i+2*d+1]*wy[m+i];
-  }  
+  }
 }
 
 // Comparison of straightforwardly computed remapd vs GllFvRemapImpl version.
@@ -707,7 +707,7 @@ static void init_dyn_data (Session& s) {
   const g::EVU<Real*****>
     phinh_i_s(g::pack2real(state.m_phinh_i), s.nelemd, nt, NP, NP, g::num_levp_aligned);
   const auto phinh_i = cmvdc(phinh_i_s);
-  
+
   init_dyn_data_f90(g::num_lev_aligned, g::num_levp_aligned, q.extent_int(1),
                     ps.data(), phis.data(), dp3d.data(), vthdp.data(), uv.data(),
                     omega.data(), q.data(), phinh_i.data());
@@ -719,7 +719,7 @@ static void test_get_temperature (Session& s) {
 
   for (const bool theta_hydrostatic_mode : {false, true}) {
     init_dyn_data(s);
-  
+
     const ExecViewManaged<Scalar*[NUM_TIME_LEVELS][NP][NP][NUM_LEV]> Td("T", s.nelemd); {
       auto& c = Context::singleton();
       const auto& sp = c.get<SimulationParams>();
@@ -852,7 +852,7 @@ static void
 test_fv_phys_to_dyn (Session& s, const int nf, const bool theta_hydrostatic_mode) {
   using Kokkos::deep_copy;
   using g = GllFvRemapImpl;
-  
+
   const int nf2 = nf*nf;
 
   gfr_init_f90(nf, theta_hydrostatic_mode);
@@ -888,7 +888,7 @@ test_fv_phys_to_dyn (Session& s, const int nf, const bool theta_hydrostatic_mode
           for (int iq = 0; iq < s.qsize; ++iq)
             ffq(ie,iq,k,i) = fq(ie,i,iq,k) = s.r.urrng(0, 0.1);
         }
-  
+
     deep_copy(dT, T);
     deep_copy(duv, uv);
     deep_copy(dfq, fq);
@@ -936,7 +936,7 @@ TEST_CASE ("gllfvremap_testing") {
   auto& s = Session::singleton(); try {
     test_get_temperature(s);
     test_calc_dp_fv(s.r, s.h);
-    
+
     // Core scalar and vector remapd routines.
     test_remapds(s.r,  7, 11, 13);
     test_remapds(s.r, 11,  7, 13);

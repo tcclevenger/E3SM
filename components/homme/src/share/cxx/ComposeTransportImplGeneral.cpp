@@ -11,7 +11,7 @@
 #include "compose_hommexx.hpp"
 
 extern "C" void
-sl_get_params(Real* nu_q, Real* hv_scaling, int* hv_q, int* hv_subcycle_q,
+sl_get_params(double* nu_q, double* hv_scaling, int* hv_q, int* hv_subcycle_q,
               int* limiter_option, int* cdr_check, int* geometry_type,
               int* trajectory_nsubstep, int* trajectory_nvelocity,
               int* diagnostics, bool* do_3d_turbulence);

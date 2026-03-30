@@ -109,7 +109,7 @@ int test_find_support (TestData&) {
   for (int i = 0; i < n; ++i) x[i] = -11.7 + (i*i)/n;
   const int ntest = 10000;
   for (int i = 0; i < ntest; ++i) {
-    const Real xi = x[0] + (Real(i)/ntest)*(x[n-1] - x[0]);
+    const Real xi = x[0] + (sp(i)/ntest)*(x[n-1] - x[0]);
     for (int x_idx : {0, 1, n/3, n/2, n-2, n-1}) {
       const int sup = find_support(n, x.data(), x_idx, xi);
       if (sup > n-2) ++ne;
@@ -131,7 +131,7 @@ void fillcols (const int n, const Real* const h, const RelnV::HostMirror& a) {
   for (int i = 0; i < a.extent_int(0); ++i)
     for (int j = 0; j < a.extent_int(1); ++j)
       for (int k = 0; k < n; ++k)
-        a(i,j,k) = h[k];  
+        a(i,j,k) = h[k];
 }
 
 void todev (const int n, const Real* const h, const RelnV& d) {
@@ -246,7 +246,7 @@ int make_random_deta (TestData& td, const Real deta_tol, const RnV& deta) {
   const auto m = Kokkos::create_mirror_view(deta);
   nerr = make_random_deta(td, deta_tol, nlev, &m(0));
   Kokkos::deep_copy(deta, m);
-  return nerr;  
+  return nerr;
 }
 
 int make_random_deta (TestData& td, const Real deta_tol, const RelnV& deta) {
@@ -409,7 +409,7 @@ int test_deta_caas (TestData& td) {
         }
     }
   }
-  
+
   return nerr;
 }
 
@@ -439,13 +439,13 @@ void fill (HybridLevels& h, const int n) {
   const Real eta_top = calc_pressure(ztop)/p0;
   assert(eta_top > 0);
   for (int i = 0; i <= n; ++i) {
-    const auto z = (Real(n - i)/n)*ztop;
+    const auto z = (sp(n - i)/n)*ztop;
     h.etai[i] = calc_pressure(z)/p0;
     h.bi[i] = i == 0 ? 0 : (h.etai[i] - eta_top)/(1 - eta_top);
     h.ai[i] = h.etai[i] - h.bi[i];
     assert(i == 0 or h.etai[i] > h.etai[i-1]);
   }
-  assert(h.bi  [0] == 0); // Real(n - i)/n is exactly 1, so exact = holds
+  assert(h.bi  [0] == 0); // sp(n - i)/n is exactly 1, so exact = holds
   assert(h.bi  [n] == 1); // exp(0) is exactly 0, so exact = holds
   assert(h.etai[n] == 1); // same
   // b = (eta - eta_top)/(1 - eta_top) => b_eta = 1/(1 - eta_top)
@@ -544,7 +544,7 @@ int test_limit_etai (TestData& td) {
     if (mingap < 0.8*deta_tol) ok = false;
     if (not ok) ++nerr;
   }
-  
+
   return nerr;
 }
 
@@ -638,7 +638,7 @@ int test_eta_interp (TestData& td) {
                 ok = false;
             } else if (xih(i,j,k) > xh(0,0,nlev-1)) {
               if (std::abs(yih(i,j,k) - yih(i,j,nlev-1)) > tol)
-                ok = false;            
+                ok = false;
             } else {
               if (std::abs(yih(i,j,k) - (i*xih(i,j,k) - j)) > tol)
                 ok = false;
@@ -647,7 +647,7 @@ int test_eta_interp (TestData& td) {
       if (not ok) ++nerr;
     }
   }
-  
+
   return nerr;
 }
 
@@ -723,7 +723,7 @@ int test_eta_to_dp (TestData& td) {
           for (int k = 0; k < nlev; ++k)
             ps += dph1(i,j,k);
           if (std::abs(ps - psm(i,j)) > tol*psm(i,j)) err("t2");
-        }    
+        }
       // Test that values on input don't affect solution.
       Kokkos::deep_copy(wrk, 0);
       Kokkos::deep_copy(dp, 0);
@@ -957,7 +957,7 @@ int test1_init_velocity_record (
 
   if (dtf % drf != 0) {
     printf("Testing erro: dtf %% drf == 0 is required: %d %d\n", dtf, drf);
-    ++e; 
+    ++e;
   }
 
   const CTI::VelocityRecord v(dtf, drf, nsub, nvel);
@@ -1019,7 +1019,7 @@ int test1_init_velocity_record (
     }
     for (int i = 0; i <= 10; ++i) {
       const Real
-        a = Real(i)/10,
+        a = sp(i)/10,
         x = (1-a)*xsup[0] + a*xsup[1],
         y = (1-a)*ysup[0] + a*ysup[1];
       if (std::abs(y - tfn(x)) > 1e3*eps) {
@@ -1028,7 +1028,7 @@ int test1_init_velocity_record (
       }
     }
   }
-  
+
   if (e) {
     printf("ERROR e %d\n", e);
     printf("dtf %d drf %d nsub %d nvel %d v.nvel %d\n",

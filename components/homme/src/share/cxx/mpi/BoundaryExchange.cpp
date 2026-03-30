@@ -26,6 +26,11 @@
 namespace Homme
 {
 
+template <typename T> MPI_Datatype get_type();
+template <> inline MPI_Datatype get_type<int>() { return MPI_INT; }
+template <> inline MPI_Datatype get_type<double>() { return MPI_DOUBLE; }
+template <> inline MPI_Datatype get_type<float>() { return MPI_FLOAT; }
+
 // ======================== IMPLEMENTATION ======================== //
 
 // Separating these allocations into a small routine works around a Cuda 10/GCC
@@ -558,7 +563,7 @@ unpack (const ExecViewUnmanaged<const HaloExchangeUnstructuredConnectionInfo*> u
            helpers.CONNECTION_PTS_FWD[dir][0].jp)
           += recv_2d_buffers(ifield, iconn)(0);
       }
-    });  
+    });
   if (rspheremp) {
     Kokkos::fence();
     const auto rsmp = *rspheremp;
@@ -1052,7 +1057,7 @@ void BoundaryExchange::build_buffer_views_and_requests()
 
   const auto& ucon = m_connectivity->get_h_ucon();
   const size_t nconn = ucon.size();
-  
+
   m_send_1d_buffers = decltype(m_send_1d_buffers)("1d send buffer", m_num_1d_fields, nconn);
   m_recv_1d_buffers = decltype(m_recv_1d_buffers)("1d recv buffer", m_num_1d_fields, nconn);
   m_send_2d_buffers = decltype(m_send_2d_buffers)("2d send buffer", m_num_2d_fields, nconn);
@@ -1158,11 +1163,11 @@ void BoundaryExchange::build_buffer_views_and_requests()
         const auto& info = ucon(i);
         count += m_elem_buf_size[info.kind];
       }
-      HOMMEXX_MPI_CHECK_ERROR(MPI_Send_init(send_ptr + offset, count, MPI_DOUBLE,
+      HOMMEXX_MPI_CHECK_ERROR(MPI_Send_init(send_ptr + offset, count, get_type<Real>(),
                                             pids[ip], m_exchange_type, mpi_comm,
                                             &m_send_requests[ip]),
                               m_connectivity->get_comm().mpi_comm());
-      HOMMEXX_MPI_CHECK_ERROR(MPI_Recv_init(recv_ptr + offset, count, MPI_DOUBLE,
+      HOMMEXX_MPI_CHECK_ERROR(MPI_Recv_init(recv_ptr + offset, count, get_type<Real>(),
                                             pids[ip], m_exchange_type, mpi_comm,
                                             &m_recv_requests[ip]),
                               m_connectivity->get_comm().mpi_comm());

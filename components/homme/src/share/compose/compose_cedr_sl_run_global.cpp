@@ -61,7 +61,7 @@ void run_global (CDR<MT>& cdr, CDRT* cedr_cdr_p,
   static const Int np2 = np_*np_;
   const Int nlev = ta.nlev, qsize = ta.qsize, nlevwrem = cdr.nsuplev*cdr.nsublev;
   cedr_assert(np_ <= 4);
-  
+
 #ifdef COMPOSE_PORT
   const auto& q_min = ta.q_min;
   const auto& q_max = ta.q_max;
@@ -157,7 +157,7 @@ void run_global (CDR<MT>& cdr, CDRT* cedr_cdr_p,
         // getting QLT's safety benefit.
         if (ti == 0) cedr_cdr.set_rhom(lci, 0, volume);
         cedr_cdr.set_Qm(lci, ti, Qm, Qm_min, Qm_max, Qm_prev);
-        if (Qm_prev < -0.5)
+        if (Qm_prev < sp(-0.5))
           warn_on_Qm_prev_negative<MT>(Qm_prev, rank, ie, ie2gci, np2, spli, k0, q,
                                        ti, sbli, lci, k, n0_qdp, np1, qdp_p, dp3d_c);
       }
