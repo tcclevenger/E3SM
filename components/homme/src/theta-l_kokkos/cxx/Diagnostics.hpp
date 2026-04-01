@@ -251,17 +251,17 @@ private:
 
   static constexpr int NUM_DIAG_TIMES = 6;
 
-  HostViewUnmanaged<Real*[NUM_DIAG_TIMES][NP][NP]> h_IEner;
-  HostViewUnmanaged<Real*[NUM_DIAG_TIMES][NP][NP]> h_KEner;
-  HostViewUnmanaged<Real*[NUM_DIAG_TIMES][NP][NP]> h_PEner;
+  HostViewUnmanaged<double*[NUM_DIAG_TIMES][NP][NP]> h_IEner;
+  HostViewUnmanaged<double*[NUM_DIAG_TIMES][NP][NP]> h_KEner;
+  HostViewUnmanaged<double*[NUM_DIAG_TIMES][NP][NP]> h_PEner;
 
   ExecViewManaged<Real*[NUM_DIAG_TIMES][NP][NP]> d_IEner;
   ExecViewManaged<Real*[NUM_DIAG_TIMES][NP][NP]> d_KEner;
   ExecViewManaged<Real*[NUM_DIAG_TIMES][NP][NP]> d_PEner;
 
-  HostViewUnmanaged<Real*[NUM_DIAG_TIMES][QSIZE_D][NP][NP]> h_Qvar;
-  HostViewUnmanaged<Real*[NUM_DIAG_TIMES][QSIZE_D][NP][NP]> h_Qmass;
-  HostViewUnmanaged<Real*                [QSIZE_D][NP][NP]> h_Q1mass;
+  HostViewUnmanaged<double*[NUM_DIAG_TIMES][QSIZE_D][NP][NP]> h_Qvar;
+  HostViewUnmanaged<double*[NUM_DIAG_TIMES][QSIZE_D][NP][NP]> h_Qmass;
+  HostViewUnmanaged<double*                [QSIZE_D][NP][NP]> h_Q1mass;
 
   ExecViewManaged<Real*[NUM_DIAG_TIMES][QSIZE_D][NP][NP]> d_Qvar;
   ExecViewManaged<Real*[NUM_DIAG_TIMES][QSIZE_D][NP][NP]> d_Qmass;
