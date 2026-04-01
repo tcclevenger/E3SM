@@ -80,7 +80,7 @@ struct SphereToRef {
     const auto cell = slice(m.e, m.tgt_elem);
     for (int i = 0; i < 4; ++i)
       for (int d = 0; d < 3; ++d)
-        cent[d] += 0.25*m.p(cell[i], d);
+        cent[d] += sp(0.25)*m.p(cell[i], d);
     const Int cf = get_cube_face_idx(cent[0], cent[1], cent[2]) + 1;
     return face == cf;
   }
@@ -115,7 +115,7 @@ private:
     const Int& face_idx, const Real& x, const Real& y, const Real& z,
     Real& fx, Real& fy)
   {
-    static constexpr Real theta_max = 0.25*M_PI;
+    static constexpr Real theta_max = sp(0.25)*M_PI;
     Real d;
     switch (face_idx) {
     case  0: d = std::abs(x); fx =  y/d; fy =  z/d; break;
@@ -130,7 +130,7 @@ private:
   }
 
   SLMM_KF Real map_face_coord_to_cell_ref_coord (Real a) const {
-    a = (0.5*(1 + a))*ne_;
+    a = (sp(0.5)*(1 + a))*ne_;
     a = 2*(a - std::floor(a)) - 1;
     return a;
   }
@@ -147,13 +147,13 @@ private:
     const auto sy = (m.p(cell[0],1) + m.p(cell[1],1) +
                      m.p(cell[2],1) + m.p(cell[3],1))/4;
     Real dist = 1e20, mdx = 0;
-    for (const Real dx : {-p.Lx, 0.0, p.Lx}) {
+    for (const Real dx : {-p.Lx, sp(0.0), p.Lx}) {
       const Real d = std::abs(x[0] + dx - sx);
       if (d < dist) { dist = d; mdx = dx; }
     }
     Real mdy = 0;
     dist = 1e20;
-    for (const Real dy : {-p.Ly, 0.0, p.Ly}) {
+    for (const Real dy : {-p.Ly, sp(0.0), p.Ly}) {
       const Real d = std::abs(x[1] + dy - sy);
       if (d < dist) { dist = d; mdy = dy; }
     }

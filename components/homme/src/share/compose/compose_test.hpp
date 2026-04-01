@@ -7,6 +7,19 @@ extern "C"
 void compose_repro_sum(const double* send, double* recv,
                        int nlocal, int nfld, int fcomm);
 
+template <class T>
+void compose_repro_sum_interface(const T* send, T* recv,
+                                 int nlocal, int nfld, int fcomm) {
+  if constexpr (std::is_same_v<T, double>) {
+    compose_repro_sum(send, recv, nlocal, nfld, fcomm);
+  } else {
+    std::vector<double> send_d(nlocal*nfld), recv_d(nlocal*nfld);
+    for (int i = 0; i < nlocal*nfld; ++i) send_d[i] = send[i];
+    compose_repro_sum(send_d.data(), recv_d.data(), nlocal, nfld, fcomm);
+    for (int i = 0; i < nlocal*nfld; ++i) recv[i] = recv_d[i];
+  }
+}
+
 namespace compose {
 namespace test {
 
@@ -15,7 +28,21 @@ int cedr_unittest();
 int cedr_unittest(MPI_Comm comm);
 int interpolate_unittest();
 
+#if HOMMEXX_SINGLE_PRECISION
+typedef float Real;
+#else
 typedef double Real;
+#endif
+
+/*
+ * Utility function for handling floating point literals,
+ * so that they match the hommexx precision.
+ */
+template<typename T> KOKKOS_INLINE_FUNCTION
+constexpr typename std::enable_if<std::is_arithmetic<T>::value,Real>::type
+sp (const T val) {
+  return Real(val);
+}
 typedef int Int;
 typedef Int Size;
 
@@ -65,7 +92,7 @@ inline Real great_circle_dist (
 	cp2 = xB*zA - xA*zB;
 	cp3 = xA*yB - xB*yA;
 	cpnorm = std::sqrt(cp1*cp1 + cp2*cp2 + cp3*cp3);
-	dotprod = xA*xB + yA*yB + zA*zB;	
+	dotprod = xA*xB + yA*yB + zA*zB;
 	return R * std::atan2(cpnorm, dotprod);
 }
 
@@ -101,7 +128,7 @@ class InitialCondition {
 
   static inline Real GH (const Real x, const Real y, const Real z,
                          const Real xi, const Real yi, const Real zi) {
-    const Real h_max = 0.95, b = 5;
+    const Real h_max = sp(0.95), b = 5;
     const Real r2 = (square(x - xi) + square(y - yi) +
                      square(z - zi));
     return h_max*std::exp(-b*r2);
@@ -109,7 +136,7 @@ class InitialCondition {
 
   static inline Real CB (const Real ri, const Real r) {
     const Real h_max = 1;
-    return 0.5*h_max*(1 + std::cos(M_PI*ri/r));
+    return sp(0.5)*h_max*(1 + std::cos(M_PI*ri/r));
   }
 
 public:
@@ -185,10 +212,10 @@ struct DivergentWindField : public OdeFn {
       costh = std::cos(theta),
       cost = std::cos(M_PI*t/T);
     // u
-    f[0] = R/T*(-5*square(std::sin(0.5*lambda_p))*std::sin(2*theta)*
+    f[0] = R/T*(-5*square(std::sin(sp(0.5)*lambda_p))*std::sin(2*theta)*
                 square(costh)*cost + 2*M_PI*costh);
     // v
-    f[1] = 2.5*R/T*std::sin(lambda_p)*cube(costh)*cost;
+    f[1] = sp(2.5)*R/T*std::sin(lambda_p)*cube(costh)*cost;
     return true;
   }
 };
@@ -212,7 +239,7 @@ public:
 // by elevation.
 KOKKOS_INLINE_FUNCTION void
 offset_latlon (const Int nlev, const Int k, Real& lat, Real& lon) {
-  lon += k*(0.4/nlev);
+  lon += k*(sp(0.4)/nlev);
 }
 
 inline InitialCondition::Shape get_ic (const Int qsize, const Int k, const Int q) {

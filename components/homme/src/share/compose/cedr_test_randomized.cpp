@@ -50,13 +50,13 @@ void TestRandomized::init_tracers_vector () {
     }
 }
 
-static Real urand () { return rand() / ((Real) RAND_MAX + 1.0); }
+static Real urand () { return rand() / ((Real) RAND_MAX + sp(1.0)); }
 
 void TestRandomized::generate_rho (Values& v) {
   auto r = v.rhom();
   const Int n = v.ncells();
   for (Int i = 0; i < n; ++i)
-    r[i] = 0.5*(1 + urand());
+    r[i] = sp(0.5)*(1 + urand());
 }
 
 void TestRandomized::generate_Q (const Tracer& t, Values& v) {
@@ -69,7 +69,7 @@ void TestRandomized::generate_Q (const Tracer& t, Values& v) {
       // Make sure the generated Qm is globally positive.
       Qm[i] = (t.no_change_should_hold ?
                urand() :
-               ((i % 2 == 0) ? 0.75 : -0.75) + urand());
+               ((i % 2 == 0) ? sp(0.75) : sp(-0.75)) + urand());
       // Qm_min,max are unused in QLT, but need them to be set here for
       // bookkeeping in check().
       Qm_min[i] = 0;
@@ -77,7 +77,7 @@ void TestRandomized::generate_Q (const Tracer& t, Values& v) {
     } else {
       // The typical use case has 0 <= q_min <= q, but test with general sign.
       const Real
-        q_min = -0.75 + urand(),
+        q_min = sp(-0.75) + urand(),
         q_max = q_min + urand(),
         q = q_min + (q_max - q_min)*urand();
       // Check correctness up to FP.
@@ -163,7 +163,7 @@ void TestRandomized
   // an interesting way, so that PT::conserve doesn't trivially undo the mod
   // that was made above when the root fixes the mass discrepancy.
   const Real
-    relax = 0.9,
+    relax = sp(0.9),
     dQm_prev = (conserve_mass ? dQm :
                 (safety_problem ?
                  ((Qm_max - Qm) + relax*alpha * (Qm_max_safety - Qm_max)) / ncells_ :
@@ -189,9 +189,9 @@ void TestRandomized::perturb_Q (const Tracer& t, Values& v) {
     // needed.
     break;
   case 1: permute_Q(t, v); break;
-  case 2: add_const_to_Q(t, v, 0.5, cm, false); break;
+  case 2: add_const_to_Q(t, v, sp(0.5), cm, false); break;
   case 3: add_const_to_Q(t, v, edg, cm, false); break;
-  case 4: add_const_to_Q(t, v, 0.5, cm, true ); break;
+  case 4: add_const_to_Q(t, v, sp(0.5), cm, true ); break;
   case 5: add_const_to_Q(t, v, edg, cm, true ); break;
   }
 }
@@ -416,7 +416,7 @@ Int TestRandomized
 
   return nerr;
 }
-  
+
 TestRandomized
 ::TestRandomized (const std::string& name, const mpi::Parallel::Ptr& p,
                   const Int& ncells, const bool verbose,

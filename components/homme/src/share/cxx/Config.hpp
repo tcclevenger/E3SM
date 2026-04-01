@@ -12,7 +12,7 @@
 # ifdef HAVE_CONFIG_H
 #  include "config.h.c"
 # endif
-#elif !defined(HOMMEXX_VECTOR_SIZE) 
+#elif !defined(HOMMEXX_VECTOR_SIZE)
 // Establish a good candidate vector size for eam builds
 # ifdef HOMMEXX_ENABLE_GPU
 #  define HOMMEXX_VECTOR_SIZE 1
@@ -31,7 +31,7 @@
 
 #include <Kokkos_Core.hpp>
 
-#ifdef HOMMEXX_ENABLE_GPU 
+#ifdef HOMMEXX_ENABLE_GPU
 # ifndef HOMMEXX_CUDA_MIN_WARP_PER_TEAM
 #  define HOMMEXX_CUDA_MIN_WARP_PER_TEAM 8
 # endif

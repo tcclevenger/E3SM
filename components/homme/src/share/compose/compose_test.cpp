@@ -71,7 +71,7 @@ void InitialCondition
     for (Size i = 0; i < n; ++i) {
       Real x, y, z;
       ll2xyz(lat[i], lon[i], x, y, z, 1);
-      u[i] = 0.5*(1 + std::sin(3*x)*std::sin(3*y)*std::sin(4*z));
+      u[i] = sp(0.5)*(1 + std::sin(3*x)*std::sin(3*y)*std::sin(4*z));
     }
   } break;
   case GaussianHills: {
@@ -82,7 +82,7 @@ void InitialCondition
     }
   } break;
   case CosineBells: {
-    const Real r = 0.5, b = 0.1, c = 0.9;
+    const Real r = sp(0.5), b = sp(0.1), c = sp(0.9);
     for (Size i = 0; i < n; ++i) {
       const Real r1 = great_circle_dist(lat[i], lon[i], lat1, lon1);
       Real h = 0;
@@ -97,7 +97,7 @@ void InitialCondition
     }
   } break;
   case SlottedCylinders: {
-    const Real b = 0.1, c = 1, R = 1, r = 0.5*R, lon_thr = r/(6*R),
+    const Real b = sp(0.1), c = 1, R = 1, r = sp(0.5)*R, lon_thr = r/(6*R),
       lat_thr = 5*(r/(12*R));
     for (Size i = 0; i < n; ++i) {
       const Real r1 = great_circle_dist(lat[i], lon[i], lat1, lon1);
@@ -123,10 +123,10 @@ void InitialCondition
         }
       }
       u[i] = b;
-    }      
+    }
   } break;
   case CorrelatedCosineBells: {
-    const Real a = -0.8, b = 0.9;
+    const Real a = sp(-0.8), b = sp(0.9);
     init(CosineBells, n, lat, lon, u);
     for (Size i = 0; i < n; ++i)
       u[i] = a*square(u[i]) + b;
@@ -180,7 +180,7 @@ struct StandaloneTracersTester {
               // and set r to 0.
               assert(p_elem(0,i,j) == 0); // check that the convention still holds
               lon = 2*M_PI*((p_elem(1,i,j) - plane.Sx)/plane.Lx);
-              lat = M_PI*((p_elem(2,i,j) - plane.Sy)/plane.Ly - 0.5);
+              lat = M_PI*((p_elem(2,i,j) - plane.Sy)/plane.Ly - sp(0.5));
             }
             offset_latlon(nlev, k, lat, lon);
             InitialCondition::init(get_ic(qsize,k,q), 1, &lat, &lon, &qdp(i,j,k,q));
@@ -206,13 +206,13 @@ struct StandaloneTracersTester {
             v(i,j,1,k) = uv[1];
           }
     } else {
-      const Real f = 1.0/day2sec(12);
+      const Real f = sp(1.0)/day2sec(12);
       for (Int k = 0; k < nlev; ++k)
         for (Int j = 0; j < np; ++j)
           for (Int i = 0; i < np; ++i) {
 #if 1
-            v(i,j,0,k) =  2.0*f*plane.Lx;
-            v(i,j,1,k) = -1.0*f*plane.Ly;
+            v(i,j,0,k) =  sp(2.0)*f*plane.Lx;
+            v(i,j,1,k) = sp(-1.0)*f*plane.Ly;
 #else
             v(i,j,0,k) = 0;
             v(i,j,1,k) = 0;
@@ -297,8 +297,8 @@ struct StandaloneTracersTester {
       {
         homme::FA2<Real> l2_num(wrk_.data(), nlev, qsize),
                          l2_den(wrk_.data() + nr, nlev, qsize);
-        compose_repro_sum(l2_num_.data(), l2_num.data(), nelemd, nr, fcomm);
-        compose_repro_sum(l2_den_.data(), l2_den.data(), nelemd, nr, fcomm);
+        compose_repro_sum_interface(l2_num_.data(), l2_num.data(), nelemd, nr, fcomm);
+        compose_repro_sum_interface(l2_den_.data(), l2_den.data(), nelemd, nr, fcomm);
         if (rank == root)
           for (int q = 0, cnt = 0; q < qsize; ++q) {
             printf("COMPOSE>");
@@ -313,15 +313,15 @@ struct StandaloneTracersTester {
       {
         Real* const mass0 = wrk_.data();
         Real* const massf = mass0 + qsize;
-        compose_repro_sum(mass0_.data(), mass0, nelemd, qsize, fcomm);
-        compose_repro_sum(massf_.data(), massf, nelemd, qsize, fcomm);
+        compose_repro_sum_interface(mass0_.data(), mass0, nelemd, qsize, fcomm);
+        compose_repro_sum_interface(massf_.data(), massf, nelemd, qsize, fcomm);
         if (rank == root)
           for (int q = 0; q < qsize; ++q) {
             const auto err = (massf[q] - mass0[q])/mass0[q];
             mass_errs[q] = err;
             printf("COMPOSE> mass0 %8.2e mass re %9.2e\n", mass0[q], err);
           }
-      }  
+      }
 #ifdef COMPOSE_HORIZ_OPENMP
     }
 #endif
@@ -334,7 +334,7 @@ static StandaloneTracersTester::Ptr g_stt;
 
 using namespace compose::test;
 
-extern "C" void compose_unittest () { 
+extern "C" void compose_unittest () {
   slmm_unittest();
   cedr_unittest();
 }

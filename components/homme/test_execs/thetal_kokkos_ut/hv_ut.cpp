@@ -53,6 +53,11 @@ void advance_hypervis_f90 (const int& np1, const Real& dt, const Real& eta_ave_w
 void cleanup_f90();
 } // extern "C"
 
+template <typename T> MPI_Datatype get_type();
+template <> inline MPI_Datatype get_type<int>() { return MPI_INT; }
+template <> inline MPI_Datatype get_type<double>() { return MPI_DOUBLE; }
+template <> inline MPI_Datatype get_type<float>() { return MPI_FLOAT; }
+
 // This class is basically a HyperviscosityFunctorImpl, but
 // using this instead of HVF we can access protected members
 // of HVF (e.g., for initialization) without exposing them in HVF.
@@ -156,14 +161,14 @@ TEST_CASE("hvf", "biharmonic") {
   params.params_set = true;
 
   // Sync params across ranks
-  MPI_Bcast(&params.nu_top,1,MPI_DOUBLE,0,c.get<Comm>().mpi_comm());
-  MPI_Bcast(&params.nu,1,MPI_DOUBLE,0,c.get<Comm>().mpi_comm());
-  MPI_Bcast(&params.nu_p,1,MPI_DOUBLE,0,c.get<Comm>().mpi_comm());
-  MPI_Bcast(&params.nu_s,1,MPI_DOUBLE,0,c.get<Comm>().mpi_comm());
-  MPI_Bcast(&params.nu_div,1,MPI_DOUBLE,0,c.get<Comm>().mpi_comm());
+  MPI_Bcast(&params.nu_top,1,get_type<Real>(),0,c.get<Comm>().mpi_comm());
+  MPI_Bcast(&params.nu,1,get_type<Real>(),0,c.get<Comm>().mpi_comm());
+  MPI_Bcast(&params.nu_p,1,get_type<Real>(),0,c.get<Comm>().mpi_comm());
+  MPI_Bcast(&params.nu_s,1,get_type<Real>(),0,c.get<Comm>().mpi_comm());
+  MPI_Bcast(&params.nu_div,1,get_type<Real>(),0,c.get<Comm>().mpi_comm());
   //reset below, not bcasted
-  MPI_Bcast(&params.hypervis_scaling,1,MPI_DOUBLE,0,c.get<Comm>().mpi_comm());
-  MPI_Bcast(&params.hypervis_subcycle,1,MPI_INT,0,c.get<Comm>().mpi_comm());
+  MPI_Bcast(&params.hypervis_scaling,1,get_type<Real>(),0,c.get<Comm>().mpi_comm());
+  MPI_Bcast(&params.hypervis_subcycle,1,get_type<int>(),0,c.get<Comm>().mpi_comm());
 
   // Create and init hvcoord and ref_elem, needed to init the fortran interface
   auto& hvcoord = c.create<HybridVCoord>();
@@ -266,7 +271,7 @@ TEST_CASE("hvf", "biharmonic") {
     for (const bool hydrostatic : {true, false}) {
       std::cout << " -> " << (hydrostatic ? "hydrostatic" : "non-hydrostatic") << "\n";
 
-      for (Real hv_scaling : {0.0, RPDF(0.5,5.0)(engine)}) {
+      for (Real hv_scaling : {sp(0.0), RPDF(0.5,5.0)(engine)}) {
         std::cout << "   -> hypervis scaling = " << hv_scaling << "\n";
         params.theta_hydrostatic_mode = hydrostatic;
 

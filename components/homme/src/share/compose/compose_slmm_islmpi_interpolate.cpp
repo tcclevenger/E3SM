@@ -35,7 +35,7 @@ static Int test_gll () {
   }
   for (Int np = 2; np <= 4; ++np) {
     const Basis b(np, 0);
-    Real a[] = {-0.9, -0.7, -0.3, 0.1, 0.2, 0.4, 0.6, 0.8};
+    Real a[] = {sp(-0.9), sp(-0.7), sp(-0.3), sp(0.1), sp(0.2), sp(0.4), sp(0.6), sp(0.8)};
     const Real delta = std::sqrt(std::numeric_limits<Real>::epsilon());
     for (size_t ia = 0; ia < sizeof(a)/sizeof(Real); ++ia) {
       Real gj[GLL::np_max], gjp[GLL::np_max], gjm[GLL::np_max];
