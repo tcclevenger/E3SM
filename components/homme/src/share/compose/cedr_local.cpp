@@ -146,16 +146,16 @@ Int test_1eq_bc_qp () {
 
   auto gena = [&] () {
     for (Int i = 0; i < n; ++i)
-      a[i] = 0.1 + cedr::util::urand();
+      a[i] = sp(0.1) + cedr::util::urand();
   };
   auto genw = [&] () {
     for (Int i = 0; i < n; ++i)
-      w[i] = 0.1 + cedr::util::urand();
+      w[i] = sp(0.1) + cedr::util::urand();
   };
   auto genbnds = [&] () {
     al = au = 0;
     for (Int i = 0; i < n; ++i) {
-      xlo[i] = cedr::util::urand() - 0.5;
+      xlo[i] = cedr::util::urand() - sp(0.5);
       al += a[i]*xlo[i];
       xhi[i] = xlo[i] + cedr::util::urand();
       au += a[i]*xhi[i];
@@ -166,10 +166,10 @@ Int test_1eq_bc_qp () {
       const Real alpha = cedr::util::urand();
       b = alpha*al + (1 - alpha)*au;
     } else {
-      if (cedr::util::urand() > 0.5)
-        b = au + 0.01 + cedr::util::urand();
+      if (cedr::util::urand() > sp(0.5))
+        b = au + sp(0.01) + cedr::util::urand();
       else
-        b = al - 0.01 - cedr::util::urand();
+        b = al - sp(0.01) - cedr::util::urand();
     }
   };
   auto geny = [&] (const bool in) {
@@ -178,12 +178,12 @@ Int test_1eq_bc_qp () {
         const Real alpha = cedr::util::urand();
         y[i] = alpha*xlo[i] + (1 - alpha)*xhi[i];
       }
-    } else if (cedr::util::urand() > 0.2) {
+    } else if (cedr::util::urand() > sp(0.2)) {
       for (Int i = 1; i < n; i += 2) {
         const Real alpha = cedr::util::urand();
         y[i] = alpha*xlo[i] + (1 - alpha)*xhi[i];
         cedr_assert(y[i] >= xlo[i] && y[i] <= xhi[i]);
-      }      
+      }
       for (Int i = 0; i < n; i += 4)
         y[i] = xlo[i] - cedr::util::urand();
       for (Int i = 2; i < n; i += 4)
@@ -235,16 +235,16 @@ Int test_1eq_nonneg () {
   for (n = 2; n <= 2; ++n) {
     const Int count = 20;
     for (Int trial = 0; trial < count; ++trial) {
-      b = 0.5*n*urand();
+      b = sp(0.5)*n*urand();
       for (Int i = 0; i < n; ++i) {
-        w[i] = 0.1 + urand();
-        a[i] = 0.1 + urand();
+        w[i] = sp(0.1) + urand();
+        a[i] = sp(0.1) + urand();
         xlo[i] = 0;
         xhi[i] = b/a[i];
         y[i] = urand();
-        if (urand() > 0.8) y[i] *= -1;
-        x1_caas[i] = urand() > 0.5 ? y[i] : -1;
-        x1_ls[i] = urand() > 0.5 ? y[i] : -1;
+        if (urand() > sp(0.8)) y[i] *= -1;
+        x1_caas[i] = urand() > sp(0.5) ? y[i] : -1;
+        x1_ls[i] = urand() > sp(0.5) ? y[i] : -1;
       }
       solve_1eq_nonneg(n, a, b, y, x1_caas, w, Method::caas);
       caas(n, a, b, xlo, xhi, y, x_caas);

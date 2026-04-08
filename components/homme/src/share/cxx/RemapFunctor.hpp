@@ -86,7 +86,7 @@ struct RemapStateAndThicknessProvider<false> {
 
     // Dummy, to silence compiler warnings
     return ExecViewUnmanaged<Scalar[NP][NP][NUM_LEV]>();
-  } 
+  }
 
   KOKKOS_INLINE_FUNCTION
   ExecViewUnmanaged<Scalar[NP][NP][NUM_LEV]>
@@ -222,7 +222,7 @@ RemapStateAndThicknessProvider<true> {
   ExecViewUnmanaged<Scalar[NP][NP][NUM_LEV]>
   get_state(const KernelVariables &kv, int np1, int var) const {
     return m_state_provider.get_state(kv,np1,var);
-  } 
+  }
 
   KOKKOS_INLINE_FUNCTION
   ExecViewUnmanaged<Scalar[NP][NP][NUM_LEV]>
@@ -242,7 +242,7 @@ RemapStateAndThicknessProvider<true> {
 // This base class serves the purpose of allowing pimp implementation in VerticalRemapManager
 struct Remapper {
   virtual ~Remapper() {}
-  virtual void run_remap(int np1, int np1_qdp, double dt) = 0;
+  virtual void run_remap(int np1, int np1_qdp, Real dt) = 0;
   virtual int requested_buffer_size () const = 0;
   virtual void init_buffers(const FunctorsBuffersManager& fbm) = 0;
 
@@ -448,7 +448,7 @@ struct RemapFunctor : public Remapper {
     m_state.m_dp3d(ie,m_data.np1,igp,jgp,ilev) = m_fields_provider.m_tgt_layer_thickness(ie,igp,jgp,ilev);
   }
 
-  void run_remap(int np1, int np1_qdp, double dt) override {
+  void run_remap(int np1, int np1_qdp, Real dt) override {
     m_data.np1 = np1;
     m_data.np1_qdp = np1_qdp;
     m_data.dt = dt;

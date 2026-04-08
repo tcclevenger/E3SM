@@ -10,10 +10,10 @@ using namespace Homme;
 using rngAlg = std::mt19937_64;
 
 extern "C" void limiter_optim_iter_full_c_callable(
-  Real* ptens, const Real* sphweights, Real* minp, Real* maxp,
+  Real* ptens, const F90Real* sphweights, F90Real* minp, F90Real* maxp,
   const Real* dpmass);
 extern "C" void limiter_clip_and_sum_c_callable(
-  Real* ptens, const Real* sphweights, Real* minp, Real* maxp,
+  Real* ptens, const F90Real* sphweights, F90Real* minp, F90Real* maxp,
   const Real* dpmass);
 
 #ifndef HOMMEXX_BFB_TESTING
@@ -46,11 +46,11 @@ struct LimiterTester {
 
   struct FortranData {
     typedef Kokkos::LayoutLeft Layout;
-    using ArrayPlvl = Kokkos::View<Real[NUM_PHYSICAL_LEV],
+    using ArrayPlvl = Kokkos::View<F90Real[NUM_PHYSICAL_LEV],
                                    Layout, HostMemSpace>;
-    using ArrayGll = Kokkos::View<Real[NP][NP],
+    using ArrayGll = Kokkos::View<F90Real[NP][NP],
                                   Layout, HostMemSpace>;
-    using ArrayGllPlvl = Kokkos::View<Real[NP][NP][NUM_PHYSICAL_LEV],
+    using ArrayGllPlvl = Kokkos::View<F90Real[NP][NP][NUM_PHYSICAL_LEV],
                                       Layout, HostMemSpace>;
     ArrayPlvl minp, maxp;
     ArrayGll sphweights;
@@ -229,7 +229,7 @@ struct LimiterTester {
     else
       limiter_optim_iter_full_c_callable(d.ptens.data(), d.sphweights.data(),
                                          d.minp.data(), d.maxp.data(),
-                                         d.dpmass.data());      
+                                         d.dpmass.data());
     for (int k = 0; k < NUM_PHYSICAL_LEV; ++k) {
       const int vi = k / VECTOR_SIZE, si = k % VECTOR_SIZE;
       for (int i = 0; i < NP; ++i)
@@ -312,7 +312,7 @@ void test_limiter (const int limiter_option, const int impl, const int init) {
     if (impl == 0)
       Kokkos::parallel_for(Homme::get_default_team_policy<ExecSpace, LimiterTester::Lim8>(1), lv);
     else
-      Kokkos::parallel_for(Kokkos::TeamPolicy<ExecSpace, LimiterTester::SerLim8>(1, 1, 1), lv);    
+      Kokkos::parallel_for(Kokkos::TeamPolicy<ExecSpace, LimiterTester::SerLim8>(1, 1, 1), lv);
   } else {
     if (impl == 0)
       Kokkos::parallel_for(Homme::get_default_team_policy<ExecSpace, LimiterTester::CAAS>(1), lv);

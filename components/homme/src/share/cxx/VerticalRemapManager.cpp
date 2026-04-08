@@ -120,7 +120,7 @@ void VerticalRemapManager::setup ()
   is_setup = true;
 }
 
-void VerticalRemapManager::run_remap(int np1, int np1_qdp, double dt) const {
+void VerticalRemapManager::run_remap(int np1, int np1_qdp, Real dt) const {
   assert(is_setup);
 
   assert(p_);

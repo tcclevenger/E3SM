@@ -7,16 +7,16 @@
 
 namespace slmm {
 
-static constexpr Real sqrt5 = 2.23606797749978969641; // std::sqrt(5.0);
-static constexpr Real oosqrt5 = 1.0 / sqrt5;
+static constexpr Real sqrt5 = sp(2.23606797749978969641); // std::sqrt(5.0);
+static constexpr Real oosqrt5 = sp(1.0) / sqrt5;
 
 SLMM_KIF void gll_np4_eval (const Real x, Real y[4]) {
-  static constexpr Real oo8 = 1.0/8.0;
+  static constexpr Real oo8 = sp(1.0)/sp(8.0);
   const Real x2 = x*x;
-  y[0] = (1.0 - x)*(5.0*x2 - 1.0)*oo8;
-  y[1] = -sqrt5*oo8*(sqrt5 - 5.0*x)*(x2 - 1.0);
-  y[2] = -sqrt5*oo8*(sqrt5 + 5.0*x)*(x2 - 1.0);
-  y[3] = (1.0 + x)*(5.0*x2 - 1.0)*oo8;
+  y[0] = (sp(1.0) - x)*(sp(5.0)*x2 - sp(1.0))*oo8;
+  y[1] = -sqrt5*oo8*(sqrt5 - sp(5.0)*x)*(x2 - sp(1.0));
+  y[2] = -sqrt5*oo8*(sqrt5 + sp(5.0)*x)*(x2 - sp(1.0));
+  y[3] = (sp(1.0) + x)*(sp(5.0)*x2 - sp(1.0))*oo8;
 }
 
 // Linear interp in each region.
@@ -40,7 +40,7 @@ SLMM_KIF void gll_np4_subgrid_eval (const Real& x, Real y[4]) {
   if (x > 0) {
     gll_np4_subgrid_eval_impl(-x, y);
     ko::swap(y[0], y[3]);
-    ko::swap(y[1], y[2]);    
+    ko::swap(y[1], y[2]);
     return;
   }
   gll_np4_subgrid_eval_impl(x, y);
@@ -64,9 +64,9 @@ SLMM_KIF void outer_eval (const Real& x, Real v[4]) {
 // regions, use an order-reduced interpolant that stabilizes the method.
 SLMM_KIF void gll_np4_subgrid_exp_eval (const Real& x, Real y[4]) {
   static constexpr Real
-    alpha = 0.5527864045000416708,
-    v = 0.427*(1 + alpha),
-    x2 = 0.4472135954999579277,
+    alpha = sp(0.5527864045000416708),
+    v = sp(0.427)*(1 + alpha),
+    x2 = sp(0.4472135954999579277),
     x3 = 1 - x2,
     det = x2*x3*(x2 - x3),
     y2 = alpha,
@@ -82,7 +82,7 @@ SLMM_KIF void gll_np4_subgrid_exp_eval (const Real& x, Real y[4]) {
       outer_eval(x, y);
     Real y4[4];
     gll_np4_eval(x, y4);
-    const Real x0 = 1 - std::abs(x);
+    const Real x0 = sp(1) - std::abs(x);
     const Real a = (c1*x0 + c2)*x0;
     for (int i = 0; i < 4; ++i)
       y[i] = a*y[i] + (1 - a)*y4[i];
@@ -114,7 +114,7 @@ SLMM_KIF void interpolate (const typename IslMpi<MT>::Advecter::Alg::Enum& alg,
     break;
   default:
     slmm_kernel_assert(0);
-  }  
+  }
 }
 
 SLMM_KIF Real calc_q_tgt (const Real rx[4], const Real ry[4], const Real qs[16]) {

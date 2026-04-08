@@ -1,12 +1,18 @@
 #ifndef INCLUDE_COMPOSE_HOMMEXX_HPP
 #define INCLUDE_COMPOSE_HOMMEXX_HPP
 
+#include "../cxx/Config.hpp"
+
 #include <Kokkos_Core.hpp>
 
 namespace homme {
 namespace compose {
 
+#if HOMMEXX_SINGLE_PRECISION
+typedef float HommexxReal;
+#else
 typedef double HommexxReal;
+#endif
 
 template <typename DataType>
 using SetView = Kokkos::View<DataType, Kokkos::LayoutRight, Kokkos::DefaultExecutionSpace>;

@@ -9,6 +9,7 @@
 
 #include "ErrorDefs.hpp"
 #include "HommexxEnums.hpp"
+#include "Types.hpp"
 
 namespace Homme
 {
@@ -32,7 +33,7 @@ struct TimeLevel
 
   // Time passed since the start of the simulation
   // TODO: I think this is used only with when CAM is defined
-  double tevolve;
+  Real tevolve;
 
   void update_dynamics_levels (UpdateType type) {
     int tmp;

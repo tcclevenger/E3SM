@@ -11,7 +11,7 @@ bool eq (const std::string& a, const char* const b1, const char* const b2) {
           a == std::string("-") + std::string(b1));
 }
 
-Real urand () { return std::rand() / ((Real) RAND_MAX + 1.0); }
+Real urand () { return std::rand() / ((Real) RAND_MAX + sp(1.0)); }
 
 Real reldif (const Real* a, const Real* b, const Int n) {
   Real num = 0, den = 0;

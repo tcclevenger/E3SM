@@ -215,7 +215,7 @@ void CTI::VelocityRecord
   for (int n = 0; n < nvel; ++n) {
     t_vel(n) = ((n*dtf) % (nvel-1) == 0 ?
                 /**/ (n*dtf) / (nvel-1) :
-                Real (n*dtf) / (nvel-1));
+                sp(n*dtf) / (nvel-1));
     assert(t_vel(n) >= 0 and t_vel(n) <= dtf);
     assert(n == 0 or t_vel(n) > t_vel(n-1));
   }
@@ -255,7 +255,7 @@ void CTI::VelocityRecord
   run_step(0) = nvel-1;
   run_step(nsub) = 1;
   for (int n = 1; n < nsub; ++n) {
-    const auto time = Real((nsub-n)*dtf)/nsub;
+    const auto time = sp((nsub-n)*dtf)/nsub;
     int ifnd = -1;
     for (int i = 0; i < nvel-1; ++i)
       if (t_vel(i) <= time and time <= t_vel(i+1)) {
@@ -700,8 +700,8 @@ void ComposeTransportImpl
       const auto& v2 = m_state.m_v;
       const auto& dp2 = m_state.m_dp3d;
       if (m_data.vrec->nvel() == 2) {
-        const Real alpha[] = {Real(nsubstep-step-1)/nsubstep,
-                              Real(nsubstep-step  )/nsubstep};
+        const Real alpha[] = {sp(nsubstep-step-1)/nsubstep,
+                              sp(nsubstep-step  )/nsubstep};
         EndpointSnapshots snaps(alpha, dp1, v1, 0, dp2, v2, np1);
         calc_nodal_velocities(*this, dtsub, snaps, vnode);
       } else {

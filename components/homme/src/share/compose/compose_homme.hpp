@@ -3,6 +3,7 @@
 
 #include "compose.hpp"
 #include "compose_kokkos.hpp"
+#include "../cxx/Config.hpp"
 
 #include <cassert>
 #include <memory>
@@ -10,7 +11,22 @@
 
 namespace homme {
 typedef int Int;
+
+#if HOMMEXX_SINGLE_PRECISION
+typedef float Real;
+#else
 typedef double Real;
+#endif
+
+/*
+ * Utility function for handling floating point literals,
+ * so that they match the hommexx precision.
+ */
+template<typename T> KOKKOS_INLINE_FUNCTION
+constexpr typename std::enable_if<std::is_arithmetic<T>::value,Real>::type
+sp (const T val) {
+  return Real(val);
+}
 
 namespace ko = Kokkos;
 
@@ -29,7 +45,7 @@ template <typename MT> using DepPoints =
   ko::View<Real****, ko::LayoutRight, typename MT::DDT>;
 template <typename MT> using QExtrema =
   ko::View<Real****, ko::LayoutRight, typename MT::DDT>;
-  
+
 template <typename MT> using DepPointsH = typename DepPoints<MT>::HostMirror;
 template <typename MT> using QExtremaH = typename QExtrema<MT>::HostMirror;
 
@@ -66,7 +82,7 @@ struct HommeFormatSubArray {
     assert(i >= 0);
     return data[i];
   }
-  COMPOSE_FORCEINLINE_FUNCTION 
+  COMPOSE_FORCEINLINE_FUNCTION
   T& operator() (const Int& k, const Int& lev) const {
     static_assert(rank == 2, "rank 2 array");
     assert(k >= 0);
@@ -74,7 +90,7 @@ struct HommeFormatSubArray {
     check(k, lev);
     return data[lev*np2 + k];
   }
-  COMPOSE_FORCEINLINE_FUNCTION 
+  COMPOSE_FORCEINLINE_FUNCTION
   T& operator() (const Int& q_or_timelev, const Int& k, const Int& lev) const {
     static_assert(rank == 3, "rank 3 array");
     assert(q_or_timelev >= 0);
@@ -83,7 +99,7 @@ struct HommeFormatSubArray {
     check(k, lev, q_or_timelev);
     return data[(q_or_timelev*nlev + lev)*np2 + k];
   }
-  COMPOSE_FORCEINLINE_FUNCTION 
+  COMPOSE_FORCEINLINE_FUNCTION
   T& operator() (const Int& timelev, const Int& q, const Int& k, const Int& lev) const {
     static_assert(rank == 4, "rank 4 array");
     assert(timelev >= 0);
@@ -95,7 +111,7 @@ struct HommeFormatSubArray {
   }
 
 private:
-  static const int np2 = 16;  
+  static const int np2 = 16;
   T* data;
   const Int nlev, qsized, ntimelev;
 
@@ -112,7 +128,7 @@ private:
         assert(q_or_timelev < qsized);
     }
     if (timelev >= 0) assert(timelev < ntimelev);
-#endif    
+#endif
   }
 };
 
@@ -154,7 +170,7 @@ struct HommeFormatArray {
     return *(ie_data_ptr[ie] + i);
 #endif
   }
-  COMPOSE_FORCEINLINE_FUNCTION 
+  COMPOSE_FORCEINLINE_FUNCTION
   T& operator() (const Int& ie, const Int& k, const Int& lev) const {
     static_assert(rank == 3, "rank 3 array");
 #if defined __CUDA_ARCH__ || defined __HIP_DEVICE_COMPILE__ || defined __SYCL_DEVICE_ONLY__
@@ -167,7 +183,7 @@ struct HommeFormatArray {
     return *(ie_data_ptr[ie] + lev*np2 + k);
 #endif
   }
-  COMPOSE_FORCEINLINE_FUNCTION 
+  COMPOSE_FORCEINLINE_FUNCTION
   T& operator() (const Int& ie, const Int& q_or_timelev, const Int& k,
                  const Int& lev) const {
     static_assert(rank == 4, "rank 4 array");
@@ -182,7 +198,7 @@ struct HommeFormatArray {
     return *(ie_data_ptr[ie] + (q_or_timelev*nlev + lev)*np2 + k);
 #endif
   }
-  COMPOSE_FORCEINLINE_FUNCTION 
+  COMPOSE_FORCEINLINE_FUNCTION
   T& operator() (const Int& ie, const Int& timelev, const Int& q, const Int& k,
                  const Int& lev) const {
     static_assert(rank == 5, "rank 4 array");
@@ -226,7 +242,7 @@ private:
         assert(q_or_timelev < qsized);
     }
     if (timelev >= 0) assert(timelev < ntimelev);
-#endif    
+#endif
   }
 };
 

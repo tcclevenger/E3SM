@@ -16,6 +16,27 @@ sl_get_params(double* nu_q, double* hv_scaling, int* hv_q, int* hv_subcycle_q,
               int* trajectory_nsubstep, int* trajectory_nvelocity,
               int* diagnostics, bool* do_3d_turbulence);
 
+template <class T>
+void sl_get_params_interface(T* nu_q, T* hv_scaling, int* hv_q, int* hv_subcycle_q,
+                             int* limiter_option, int* cdr_check, int* geometry_type,
+                             int* trajectory_nsubstep, int* trajectory_nvelocity,
+                             int* diagnostics, bool* do_3d_turbulence) {
+  if constexpr (std::is_same_v<T, double>) {
+    sl_get_params(nu_q, hv_scaling, hv_q, hv_subcycle_q,
+                  limiter_option, cdr_check, geometry_type,
+                  trajectory_nsubstep, trajectory_nvelocity,
+                  diagnostics, do_3d_turbulence);
+  } else {
+    double nu_q_d, hv_scaling_d;
+    sl_get_params(&nu_q_d, &hv_scaling_d, hv_q, hv_subcycle_q,
+                  limiter_option, cdr_check, geometry_type,
+                  trajectory_nsubstep, trajectory_nvelocity,
+                  diagnostics, do_3d_turbulence);
+    *nu_q       = static_cast<T>(nu_q_d);
+    *hv_scaling = static_cast<T>(hv_scaling_d);
+  }
+}
+
 namespace Homme {
 
 static int calc_nslot (const int nelemd) {
@@ -46,9 +67,9 @@ void ComposeTransportImpl::setup () {
   m_geometry = Context::singleton().get<ElementsGeometry>();
   m_tracers = Context::singleton().get<Tracers>();
   m_sphere_ops = Context::singleton().get<SphereOperators>();
-  
+
   set_dp_tol();
-  
+
   nslot = calc_nslot(m_geometry.num_elems());
 }
 
@@ -57,10 +78,10 @@ void ComposeTransportImpl::reset (const SimulationParams& params) {
 
   const bool independent_time_steps = params.dt_tracer_factor > params.dt_remap_factor;
 
-  sl_get_params(&m_data.nu_q, &m_data.hv_scaling, &m_data.hv_q, &m_data.hv_subcycle_q,
-                &m_data.limiter_option, &m_data.cdr_check, &m_data.geometry_type,
-                &m_data.trajectory_nsubstep, &m_data.trajectory_nvelocity,
-                &m_data.diagnostics, &m_data.do_3d_turbulence);
+  sl_get_params_interface(&m_data.nu_q, &m_data.hv_scaling, &m_data.hv_q, &m_data.hv_subcycle_q,
+                          &m_data.limiter_option, &m_data.cdr_check, &m_data.geometry_type,
+                          &m_data.trajectory_nsubstep, &m_data.trajectory_nvelocity,
+                          &m_data.diagnostics, &m_data.do_3d_turbulence);
 
   if (independent_time_steps != m_data.independent_time_steps or
       m_data.nelemd != num_elems or m_data.qsize != params.qsize) {
@@ -200,7 +221,7 @@ void ComposeTransportImpl::init_boundary_exchanges () {
       be->set_diagnostics_level(sp.internal_diagnostics_level);
       be->set_buffers_manager(bm_exchange);
       be->set_num_fields(0, 0, m_data.hv_q);
-      if (i == 0) 
+      if (i == 0)
         be->register_field(m_tracers.qtens_biharmonic, m_data.hv_q, 0);
       else
         be->register_field(m_tracers.Q, m_data.hv_q, 0);
@@ -216,7 +237,7 @@ void ComposeTransportImpl::run (const TimeLevel& tl, const Real dt) {
     calc_trajectory(tl.np1, dt);
   else
     calc_enhanced_trajectory(tl.nstep, tl.np1, dt);
-  
+
   GPTLstart("compose_isl");
   homme::compose::advect(tl.np1, tl.n0_qdp, tl.np1_qdp);
   Kokkos::fence();
@@ -249,12 +270,12 @@ void ComposeTransportImpl::run (const TimeLevel& tl, const Real dt) {
     homme::compose::property_preserve_local(m_data.limiter_option);
     Kokkos::fence();
   }
-  GPTLstop("compose_cedr_local");    
+  GPTLstop("compose_cedr_local");
 
   const auto np1 = tl.np1;
   const auto np1_qdp = tl.np1_qdp;
   const auto qsize = m_data.qsize;
-  
+
   if ( ! run_cedr) {
     // For analysis purposes, property preservation was not run. Need to convert
     // Q to qdp.
@@ -269,7 +290,7 @@ void ComposeTransportImpl::run (const TimeLevel& tl, const Real dt) {
     };
     launch_ie_q_ij_nlev<num_lev_pack>(qsize, f);
   }
-  
+
   { // DSS qdp and omega
     GPTLstart("compose_dss_q");
     const auto qdp = m_tracers.qdp;
@@ -291,14 +312,14 @@ void ComposeTransportImpl::run (const TimeLevel& tl, const Real dt) {
     Kokkos::fence();
     GPTLstop("compose_dss_q");
   }
-  
+
   if (m_data.cdr_check) {
     GPTLstart("compose_cedr_check");
     homme::compose::property_preserve_check();
     Kokkos::fence();
     GPTLstop("compose_cedr_check");
   }
-  
+
   GPTLstop("compose_transport");
 }
 

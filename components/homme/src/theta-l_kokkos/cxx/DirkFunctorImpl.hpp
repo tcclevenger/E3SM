@@ -361,6 +361,7 @@ struct DirkFunctorImpl {
           loop_ki(kv, nlev-1, nvec, [&] (int k, int i) {
             dphi(k,i) = dphi_n0(k,i) + dt2*grav*(         (w_np1(k+1,i) - w_np1(k,i)) +
                                                  wrk(2,i)*(    x(k+1,i) -     x(k,i)));
+
           });
           loop_ki(kv, 1, nvec, [&] (int, int i) {
             const auto k = nlev-1;
@@ -382,8 +383,8 @@ struct DirkFunctorImpl {
       kv.team_barrier();
 
       if (it >= maxiter) {
-        Kokkos::printf("[DIRK] WARNING! Newton reached max iteration count,"
-                       " with deltaerr = %3.17f\n", deltaerr);
+        Kokkos::printf("%d: [DIRK] WARNING! Newton reached max iteration count,"
+                       " with deltaerr = %3.17f\n",it, deltaerr);
         nerr = 1;
       }
 
@@ -462,7 +463,7 @@ struct DirkFunctorImpl {
       const int n = npack;
       const auto p = Kokkos::ThreadVectorRange(kv.team, n);
       Kokkos::parallel_for(p, g);
-    };    
+    };
     Kokkos::parallel_for(Kokkos::TeamThreadRange(kv.team, nlev), f);
   }
 
@@ -489,7 +490,7 @@ struct DirkFunctorImpl {
       };
       const auto p = Kokkos::ThreadVectorRange(kv.team, dst.extent_int(2));
       Kokkos::parallel_for(p, g);
-    };    
+    };
     Kokkos::parallel_for(Kokkos::TeamThreadRange(kv.team, NP*NP), f);
   }
 
@@ -648,7 +649,7 @@ struct DirkFunctorImpl {
       const int idx = i*packn + s, gi = idx / NP, gj = idx % NP;
       if (scaln % packn != 0 && idx >= scaln) break;
       phi_i(num_phys_lev,i)[s] = phis(gi,gj);
-    }    
+    }
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -674,7 +675,7 @@ struct DirkFunctorImpl {
     Real wmax;
     const auto tr = TeamThreadRange(kv.team, nlev);
     parallel_reduce(tr, f, Kokkos::Max<Real>(wmax));
-    return max(1.0, wmax);
+    return max(sp(1.0), wmax);
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -759,7 +760,7 @@ struct DirkFunctorImpl {
         const int k = nlev-1;
         const auto b = 2*a/(dp3d(k-1,i) + dp3d(k,i));
         dl(k,i) = b*(pnh(k-1,i)/dphi(k-1,i));
-        d (k,i) = 1 - dl(k,i) - b*(pnh(k,i)/dphi(k,i));        
+        d (k,i) = 1 - dl(k,i) - b*(pnh(k,i)/dphi(k,i));
       };
       parallel_for(pv, ke);
     };
@@ -816,7 +817,7 @@ struct DirkFunctorImpl {
           dw = w_np1(k+1,i)[s] - w_np1(k,i)[s];
         } else {
           dx = -    x(k,i)[s];
-          dw = -w_np1(k,i)[s];          
+          dw = -w_np1(k,i)[s];
         }
         if (dx != 0) {
           // Step length at which dphi(k,i)[s] would = 0.
@@ -840,7 +841,7 @@ struct DirkFunctorImpl {
       const auto vr = ThreadVectorRange(kv.team, nlev);
       parallel_reduce(vr, g, Kokkos::Min<Real>(alpha));
       // Step halfway to the distance at which at least one dphi is 0.
-      wrk(2,i)[s] = min(1.0, alpha)/2;
+      wrk(2,i)[s] = min(sp(1.0), alpha)/2;
     };
     const auto tr = TeamThreadRange(kv.team, static_cast<int>(scaln));
     parallel_for(tr, f);

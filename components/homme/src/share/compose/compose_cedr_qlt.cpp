@@ -11,6 +11,7 @@ namespace compose {
 
 typedef cedr::Int Int;
 typedef cedr::Real Real;
+using cedr::sp;
 template <typename ES> using RealList = typename cedr::qlt::QLT<ES>::RealList;
 
 //todo All of this VerticalLevelsData-related code should be impl'ed
@@ -63,7 +64,7 @@ static Int solve (const Int n, const Real* a, const Real b,
 static Int solve (const Int nlev, const VerticalLevelsData& vld,
                   const Real& tot_mass) {
   return solve(nlev, vld.ones.data(), tot_mass, vld.lo.data(), vld.hi.data(),
-               vld.mass.data(), vld.wrk.data());    
+               vld.mass.data(), vld.wrk.data());
 }
 
 static Int solve_unittest () {
@@ -71,9 +72,9 @@ static Int solve_unittest () {
   static const Int n = 7;
 
   Real a[n], xlo[n], xhi[n], x[n], wrk[n];
-  static const Real x0  [n] = { 1.2, 0.5,3  , 2  , 1.5, 1.8,0.2};
-  static const Real dxlo[n] = {-0.1,-0.2,0.5,-1.5,-0.1,-1.1,0.1};
-  static const Real dxhi[n] = { 0.1,-0.1,1  ,-0.5, 0.1,-0.2,0.5};
+  static const Real x0  [n] = { sp(1.2), sp(0.5),3  , 2  , sp(1.5), sp(1.8),sp(0.2)};
+  static const Real dxlo[n] = {sp(-0.1),sp(-0.2),sp(0.5),sp(-1.5),sp(-0.1),sp(-1.1),sp(0.1)};
+  static const Real dxhi[n] = { sp(0.1),sp(-0.1),1  ,sp(-0.5), sp(0.1),sp(-0.2),sp(0.5)};
   for (Int i = 0; i < n; ++i) a[i] = i+1;
   for (Int i = 0; i < n; ++i) xlo[i] = x0[i] + dxlo[i];
   for (Int i = 0; i < n; ++i) xhi[i] = x0[i] + dxhi[i];
@@ -89,7 +90,7 @@ static Int solve_unittest () {
   for (Int i = 0; i < n; ++i) x[i] = x0[i];
   b = 0;
   for (Int i = 0; i < n; ++i) b += a[i]*xlo[i];
-  b *= 0.9;
+  b *= sp(0.9);
   status = solve(n, a, b, xlo, xhi, x, wrk);
   if (status != -2) ++nerr;
   check_mass();
@@ -98,7 +99,7 @@ static Int solve_unittest () {
   for (Int i = 0; i < n; ++i) x[i] = x0[i];
   b = 0;
   for (Int i = 0; i < n; ++i) b += a[i]*xhi[i];
-  b *= 1.1;
+  b *= sp(1.1);
   status = solve(n, a, b, xlo, xhi, x, wrk);
   if (status != -1) ++nerr;
   check_mass();
@@ -106,7 +107,7 @@ static Int solve_unittest () {
 
   for (Int i = 0; i < n; ++i) x[i] = x0[i];
   b = 0;
-  for (Int i = 0; i < n; ++i) b += 0.5*a[i]*(xlo[i] + xhi[i]);
+  for (Int i = 0; i < n; ++i) b += sp(0.5)*a[i]*(xlo[i] + xhi[i]);
   status = solve(n, a, b, xlo, xhi, x, wrk);
   if (status != 0) ++nerr;
   check_mass();

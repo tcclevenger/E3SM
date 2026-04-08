@@ -48,7 +48,6 @@ contains
     real (kind=real_kind) :: temp(np,np,nlev),ps_ref(np,np)
     real (kind=real_kind) :: ptop_over_press
 
-
     ! other theta specific model initialization should go here
     do ie=nets,nete
        gradtemp(:,:,:,ie) = gradient_sphere( elem(ie)%state%phis(:,:), deriv, elem(ie)%Dinv)

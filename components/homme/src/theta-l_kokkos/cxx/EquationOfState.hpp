@@ -107,12 +107,12 @@ public:
     exner = (-PhysicalConstants::Rgas)*vtheta_dp / dphi;
     pnh = exner/PhysicalConstants::p0;
 #ifndef HOMMEXX_BFB_TESTING
-    pnh = pow(pnh,1.0/(1.0-PhysicalConstants::kappa));
+    pnh = pow(pnh,sp(1.0)/(sp(1.0)-PhysicalConstants::kappa));
 #else
-    pnh = bfb_pow(pnh,1.0/(1.0-PhysicalConstants::kappa));
+    pnh = bfb_pow(pnh,sp(1.0)/(sp(1.0)-PhysicalConstants::kappa));
 #endif
     pnh *= PhysicalConstants::p0;
-    exner = pnh/exner;    
+    exner = pnh/exner;
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -204,7 +204,7 @@ public:
 #else
     // TODO: remove temporaries
     return (Rgas*vtheta_dp * pow(p/p0,kappa-1)) / p0;
-#endif    
+#endif
   }
 
   // If exner is available, then use exner/p instead of (p/p0)^(k-1)/p0, to avoid dealing with exponentials

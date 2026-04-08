@@ -312,15 +312,153 @@ void ElementsState::randomize(const int seed,
   Kokkos::fence();
 }
 
+namespace {
+    template <typename ViewT>
+  std::enable_if_t<ViewT::rank==4, F90Real>
+  sum_f90_view(const ViewT& view) {
+    F90Real sum = 0;
+    for (int i0=0; i0<view.extent_int(0); ++i0) {
+      for (int i1=0; i1<view.extent_int(1); ++i1) {
+        for (int i2=0; i2<view.extent_int(2); ++i2) {
+          for (int i3=0; i3<view.extent_int(3); ++i3) {
+            //printf("  view(%d,%d,%d,%d) = %f\n", i0,i1,i2,i3,view(i0,i1,i2,i3));
+            sum += view(i0,i1,i2,i3);
+          }
+        }
+      }
+    }
+    return sum;
+  }
+  template <typename ViewT>
+  std::enable_if_t<ViewT::rank==5, F90Real>
+  sum_f90_view(const ViewT& view) {
+    F90Real sum = 0;
+    for (int i0=0; i0<view.extent_int(0); ++i0) {
+      for (int i1=0; i1<view.extent_int(1); ++i1) {
+        for (int i2=0; i2<view.extent_int(2); ++i2) {
+          for (int i3=0; i3<view.extent_int(3); ++i3) {
+            for (int i4=0; i4<view.extent_int(4); ++i4) {
+              //printf("  view(%d,%d,%d,%d,%d) = %f\n", i0,i1,i2,i3,i4,view(i0,i1,i2,i3,i4));
+              sum += view(i0,i1,i2,i3,i4);
+            }
+          }
+        }
+      }
+    }
+    return sum;
+  }
+  template <typename ViewT>
+  std::enable_if_t<ViewT::rank==6, F90Real>
+  sum_f90_view(const ViewT& view) {
+    F90Real sum = 0;
+    for (int i0=0; i0<view.extent_int(0); ++i0) {
+      for (int i1=0; i1<view.extent_int(1); ++i1) {
+        for (int i2=0; i2<view.extent_int(2); ++i2) {
+          for (int i3=0; i3<view.extent_int(3); ++i3) {
+            for (int i4=0; i4<view.extent_int(4); ++i4) {
+              for (int i5=0; i5<view.extent_int(5); ++i5) {
+                sum += view(i0,i1,i2,i3,i4,i5);
+              }
+            }
+          }
+        }
+      }
+    }
+    return sum;
+  }
+  template <typename ViewT>
+  std::enable_if_t<ViewT::rank==4, std::array<Real, 3>>
+  sum_view(const ViewT& view) {
+    Real min_val = std::numeric_limits<Real>::max();
+    Real max_val = std::numeric_limits<Real>::lowest();
+    Real sum = 0;
+    for (int i0=0; i0<view.extent_int(0); ++i0) {
+      for (int i1=0; i1<view.extent_int(1); ++i1) {
+        for (int i2=0; i2<view.extent_int(2); ++i2) {
+          for (int i3=0; i3<view.extent_int(3); ++i3) {
+            Real val = view(i0,i1,i2,i3);
+            if (val < min_val) min_val = val;
+            if (val > max_val) max_val = val;
+            sum += val;
+          }
+        }
+      }
+    }
+    return std::array<Real, 3>{sum, min_val, max_val};
+  }
+  template <int LEVS, typename ViewT>
+  std::enable_if_t<ViewT::rank==5, std::array<Real, 3>>
+  sum_view(const ViewT& view) {
+    Real min_val = std::numeric_limits<Real>::max();
+    Real max_val = std::numeric_limits<Real>::lowest();
+    Real sum = 0;
+    for (int i0=0; i0<view.extent_int(0); ++i0) {
+      for (int i1=0; i1<view.extent_int(1); ++i1) {
+        for (int i2=0; i2<view.extent_int(2); ++i2) {
+          for (int i3=0; i3<view.extent_int(3); ++i3) {
+            for (int i4=0; i4<view.extent_int(4); ++i4) {
+              for (int p=0; p<VECTOR_SIZE; ++p) {
+                if (i4*VECTOR_SIZE+p < LEVS) {
+                  Real val = view(i0,i1,i2,i3,i4)[p];
+                  if (val < min_val) min_val = val;
+                  if (val > max_val) max_val = val;
+                  sum += val;
+                  //printf("  view(%d,%d,%d,%d,%d)[%d] = %f\n", i0,i1,i2,i3,i4,p,val);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return std::array<Real, 3>{sum, min_val, max_val};
+  }
+  template <int LEVS, typename ViewT>
+  std::enable_if_t<ViewT::rank==6, std::array<Real, 3>>
+  sum_view(const ViewT& view) {
+    Real min_val = std::numeric_limits<Real>::max();
+    Real max_val = std::numeric_limits<Real>::lowest();
+    Real sum = 0;
+    for (int i0=0; i0<view.extent_int(0); ++i0) {
+      for (int i1=0; i1<view.extent_int(1); ++i1) {
+        for (int i2=0; i2<view.extent_int(2); ++i2) {
+          for (int i3=0; i3<view.extent_int(3); ++i3) {
+            for (int i4=0; i4<view.extent_int(4); ++i4) {
+              for (int i5=0; i5<view.extent_int(5); ++i5) {
+                for (int p=0; p<VECTOR_SIZE; ++p) {
+                  if (i5*VECTOR_SIZE+p < LEVS) {
+                    Real val = view(i0,i1,i2,i3,i4,i5)[p];
+                    if (val < min_val) min_val = val;
+                    if (val > max_val) max_val = val;
+                    sum += val;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return std::array<Real, 3>{sum, min_val, max_val};
+  }
+}
+
 void ElementsState::pull_from_f90_pointers (CF90Ptr& state_v,         CF90Ptr& state_w_i,
                                             CF90Ptr& state_vtheta_dp, CF90Ptr& state_phinh_i,
                                             CF90Ptr& state_dp3d,      CF90Ptr& state_ps_v) {
-  HostViewUnmanaged<const Real *[NUM_TIME_LEVELS][NUM_PHYSICAL_LEV ][2][NP][NP]> state_v_f90         (state_v,m_num_elems);
-  HostViewUnmanaged<const Real *[NUM_TIME_LEVELS][NUM_INTERFACE_LEV]   [NP][NP]> state_w_i_f90       (state_w_i,m_num_elems);
-  HostViewUnmanaged<const Real *[NUM_TIME_LEVELS][NUM_PHYSICAL_LEV ]   [NP][NP]> state_vtheta_dp_f90 (state_vtheta_dp,m_num_elems);
-  HostViewUnmanaged<const Real *[NUM_TIME_LEVELS][NUM_INTERFACE_LEV]   [NP][NP]> state_phinh_i_f90   (state_phinh_i,m_num_elems);
-  HostViewUnmanaged<const Real *[NUM_TIME_LEVELS][NUM_PHYSICAL_LEV ]   [NP][NP]> state_dp3d_f90      (state_dp3d,m_num_elems);
-  HostViewUnmanaged<const Real *[NUM_TIME_LEVELS]                      [NP][NP]> ps_v_f90            (state_ps_v,m_num_elems);
+  HostViewUnmanaged<const F90Real *[NUM_TIME_LEVELS][NUM_PHYSICAL_LEV ][2][NP][NP]> state_v_f90         (state_v,m_num_elems);
+  HostViewUnmanaged<const F90Real *[NUM_TIME_LEVELS][NUM_INTERFACE_LEV]   [NP][NP]> state_w_i_f90       (state_w_i,m_num_elems);
+  HostViewUnmanaged<const F90Real *[NUM_TIME_LEVELS][NUM_PHYSICAL_LEV ]   [NP][NP]> state_vtheta_dp_f90 (state_vtheta_dp,m_num_elems);
+  HostViewUnmanaged<const F90Real *[NUM_TIME_LEVELS][NUM_INTERFACE_LEV]   [NP][NP]> state_phinh_i_f90   (state_phinh_i,m_num_elems);
+  HostViewUnmanaged<const F90Real *[NUM_TIME_LEVELS][NUM_PHYSICAL_LEV ]   [NP][NP]> state_dp3d_f90      (state_dp3d,m_num_elems);
+  HostViewUnmanaged<const F90Real *[NUM_TIME_LEVELS]                      [NP][NP]> ps_v_f90            (state_ps_v,m_num_elems);
+
+  printf("state_v_f90_sum = %f\n", sum_f90_view(state_v_f90));
+  printf("state_w_i_f90_sum = %f\n", sum_f90_view(state_w_i_f90));
+  printf("state_vtheta_dp_f90_sum = %f\n", sum_f90_view(state_vtheta_dp_f90));
+  printf("state_phinh_i_f90_sum = %f\n", sum_f90_view(state_phinh_i_f90));
+  printf("state_dp3d_f90_sum = %f\n", sum_f90_view(state_dp3d_f90));
+  printf("ps_v_f90_sum = %f\n", sum_f90_view(ps_v_f90));
 
   sync_to_device(state_v_f90,         m_v);
   sync_to_device(state_w_i_f90,       m_w_i);
@@ -328,21 +466,35 @@ void ElementsState::pull_from_f90_pointers (CF90Ptr& state_v,         CF90Ptr& s
   sync_to_device(state_phinh_i_f90,   m_phinh_i);
   sync_to_device(state_dp3d_f90,      m_dp3d);
 
+  auto v_info = sum_view<NUM_PHYSICAL_LEV>(m_v);
+  printf("m_v: sum = %f, min = %f, max = %f\n", v_info[0], v_info[1], v_info[2]);
+  auto w_i_info = sum_view<NUM_INTERFACE_LEV>(m_w_i);
+  printf("m_w_i: sum = %f, min = %f, max = %f\n", w_i_info[0], w_i_info[1], w_i_info[2]);
+  auto vtheta_dp_info = sum_view<NUM_PHYSICAL_LEV>(m_vtheta_dp);
+  printf("m_vtheta_dp: sum = %f, min = %f, max = %f\n", vtheta_dp_info[0], vtheta_dp_info[1], vtheta_dp_info[2]);
+  auto phinh_i_info = sum_view<NUM_INTERFACE_LEV>(m_phinh_i);
+  printf("m_phinh_i: sum = %f, min = %f, max = %f\n", phinh_i_info[0], phinh_i_info[1], phinh_i_info[2]);
+   auto dp3d_info = sum_view<NUM_PHYSICAL_LEV>(m_dp3d);
+  printf("m_dp3d: sum = %f, min = %f, max = %f\n", dp3d_info[0], dp3d_info[1], dp3d_info[2]);
+
   // F90 ptrs to arrays (np,np,num_time_levels,nelemd) can be stuffed directly in an unmanaged view
   // with scalar Real*[NUM_TIME_LEVELS][NP][NP] (with runtime dimension nelemd)
 
   auto ps_v_host = Kokkos::create_mirror_view(m_ps_v);
   Kokkos::deep_copy(ps_v_host,ps_v_f90);
   Kokkos::deep_copy(m_ps_v,ps_v_host);
+
+  auto ps_v_info = sum_view(m_ps_v);
+  printf("m_ps_v: sum = %f, min = %f, max = %f\n", ps_v_info[0], ps_v_info[1], ps_v_info[2]);
 }
 
 void ElementsState::push_to_f90_pointers (F90Ptr& state_v, F90Ptr& state_w_i, F90Ptr& state_vtheta_dp,
                                           F90Ptr& state_phinh_i, F90Ptr& state_dp3d) const {
-  HostViewUnmanaged<Real *[NUM_TIME_LEVELS][NUM_PHYSICAL_LEV ][2][NP][NP]> state_v_f90         (state_v,m_num_elems);
-  HostViewUnmanaged<Real *[NUM_TIME_LEVELS][NUM_INTERFACE_LEV]   [NP][NP]> state_w_i_f90       (state_w_i,m_num_elems);
-  HostViewUnmanaged<Real *[NUM_TIME_LEVELS][NUM_PHYSICAL_LEV ]   [NP][NP]> state_vtheta_dp_f90 (state_vtheta_dp,m_num_elems);
-  HostViewUnmanaged<Real *[NUM_TIME_LEVELS][NUM_INTERFACE_LEV]   [NP][NP]> state_phinh_i_f90   (state_phinh_i,m_num_elems);
-  HostViewUnmanaged<Real *[NUM_TIME_LEVELS][NUM_PHYSICAL_LEV ]   [NP][NP]> state_dp3d_f90      (state_dp3d,m_num_elems);
+  HostViewUnmanaged<F90Real *[NUM_TIME_LEVELS][NUM_PHYSICAL_LEV ][2][NP][NP]> state_v_f90         (state_v,m_num_elems);
+  HostViewUnmanaged<F90Real *[NUM_TIME_LEVELS][NUM_INTERFACE_LEV]   [NP][NP]> state_w_i_f90       (state_w_i,m_num_elems);
+  HostViewUnmanaged<F90Real *[NUM_TIME_LEVELS][NUM_PHYSICAL_LEV ]   [NP][NP]> state_vtheta_dp_f90 (state_vtheta_dp,m_num_elems);
+  HostViewUnmanaged<F90Real *[NUM_TIME_LEVELS][NUM_INTERFACE_LEV]   [NP][NP]> state_phinh_i_f90   (state_phinh_i,m_num_elems);
+  HostViewUnmanaged<F90Real *[NUM_TIME_LEVELS][NUM_PHYSICAL_LEV ]   [NP][NP]> state_dp3d_f90      (state_dp3d,m_num_elems);
 
   sync_to_host(m_v,         state_v_f90);
   sync_to_host(m_w_i,       state_w_i_f90);

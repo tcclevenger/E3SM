@@ -40,6 +40,11 @@ void run_limiter_f90 (const int& np1, Real*& dp_ptr, Real*& vtheta_dp_ptr);
 void cleanup_f90();
 } // extern "C"
 
+template <typename T> MPI_Datatype get_type();
+template <> inline MPI_Datatype get_type<int>() { return MPI_INT; }
+template <> inline MPI_Datatype get_type<double>() { return MPI_DOUBLE; }
+template <> inline MPI_Datatype get_type<float>() { return MPI_FLOAT; }
+
 TEST_CASE("caar", "caar_testing") {
 
   // Catch runs these blocks of code multiple times, namely once per each
@@ -81,7 +86,7 @@ TEST_CASE("caar", "caar_testing") {
   // Init parameters
   auto& params = c.create<SimulationParams>();
   params.params_set = true;
-  //since init_params... is not called here and thus F setup is not transferred, manually 
+  //since init_params... is not called here and thus F setup is not transferred, manually
   //modify thresholds values as in control mod
   params.dp3d_thresh = 0.125;
   params.vtheta_thresh = 100.0;
@@ -254,12 +259,12 @@ TEST_CASE("caar", "caar_testing") {
 
             // Sync scalars across ranks (only np1 is *really* necessary, but might as well...)
             auto mpi_comm = Context::singleton().get<Comm>().mpi_comm();
-            MPI_Bcast(&dt,1,MPI_DOUBLE,0,mpi_comm);
-            MPI_Bcast(&scale1,1,MPI_DOUBLE,0,mpi_comm);
-            MPI_Bcast(&scale2,1,MPI_DOUBLE,0,mpi_comm);
-            MPI_Bcast(&scale3,1,MPI_DOUBLE,0,mpi_comm);
-            MPI_Bcast(&eta_ave_w,1,MPI_DOUBLE,0,mpi_comm);
-            MPI_Bcast(&np1,1,MPI_INT,0,mpi_comm);
+            MPI_Bcast(&dt,1,get_type<Real>(),0,mpi_comm);
+            MPI_Bcast(&scale1,1,get_type<Real>(),0,mpi_comm);
+            MPI_Bcast(&scale2,1,get_type<Real>(),0,mpi_comm);
+            MPI_Bcast(&scale3,1,get_type<Real>(),0,mpi_comm);
+            MPI_Bcast(&eta_ave_w,1,get_type<Real>(),0,mpi_comm);
+            MPI_Bcast(&np1,1,get_type<int>(),0,mpi_comm);
 
             const int  n0  = (np1+1)%3;
             const int  nm1 = (np1+2)%3;

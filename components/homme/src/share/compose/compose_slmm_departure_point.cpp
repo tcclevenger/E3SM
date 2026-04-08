@@ -58,9 +58,9 @@ void make_continuous (const Plane& p, LocalMesh<ko::MachineTraits::HES>& m) {
   for (Int ie = 0; ie < ncell; ++ie) {
     if (ie == m.tgt_elem) continue;
     // Find the distance-minimizing translation, including 0 translation.
-    Real min_dist = 1e20, mdx = 0, mdy = 0;
-    for (const Real dx : {-p.Lx, 0.0, p.Lx})
-      for (const Real dy : {-p.Ly, 0.0, p.Ly}) {
+    Real min_dist = sp(1e20), mdx = 0, mdy = 0;
+    for (const Real dx : {-p.Lx, sp(0.0), p.Lx})
+      for (const Real dy : {-p.Ly, sp(0.0), p.Ly}) {
         const Real d = dist(ie, dx, dy);
         if (d < min_dist) { min_dist = d; mdx = dx; mdy = dy; }
       }
@@ -75,7 +75,7 @@ namespace nearest_point {
 Int test_canpoa (const bool sphere) {
   Int nerr = 0;
   using geo = siqk::SphereGeometry;
-  Real p0[] = {-0.5,0.5,0}, p1[] = {0.1,0.8,0}, nml[] = {0,0,-1};
+  Real p0[] = {sp(-0.5), sp(0.5), 0}, p1[] = {sp(0.1), sp(0.8), 0}, nml[] = {0, 0, -1};
   geo::normalize(p0);
   geo::normalize(p1);
   const Real points[][3] = {{-100,1,7}, {0,1,-7}, {11,-1,7}};
@@ -110,7 +110,7 @@ Int test_calc (const LocalMesh<ES>& m, const Int& tgt_ic, const Real length_scal
     calc(m, v);
     if (calc_dist(p0, v) > tol) ++nerr;
     Real on[3];
-    siqk::SphereGeometry::combine(p0, p1, 0.4, on);
+    siqk::SphereGeometry::combine(p0, p1, sp(0.4), on);
     if (m.is_sphere()) siqk::SphereGeometry::normalize(on);
     for (Int d = 0; d < 3; ++d) v[d] = on[d];
     calc(m, v);
@@ -162,14 +162,14 @@ Int unittest (LocalMesh<ko::MachineTraits::HES>& m, const Int tgt_elem,
   const Int nc = len(m.e);
   for (Int ic = 0; ic < nc; ++ic) {
     const auto cell = slice(m.e, ic);
-    static const Real alphas[] = { 0.01, 0.99, 0, 1 };
+    static const Real alphas[] = { sp(0.01), sp(0.99), 0, 1 };
     static const int nalphas = sizeof(alphas)/sizeof(*alphas);
     for (Int i = 0; i < nalphas; ++i)
       for (Int j = 0; j < nalphas; ++j) {
         const Real a = alphas[i], oma = 1-a, b = alphas[j], omb = 1-b;
         Real v[3] = {0};
         for (Int d = 0; d < 3; ++d)
-          v[d] = (  b*(a*m.p(cell[0], d) + oma*m.p(cell[1], d)) + 
+          v[d] = (  b*(a*m.p(cell[0], d) + oma*m.p(cell[1], d)) +
                   omb*(a*m.p(cell[3], d) + oma*m.p(cell[2], d)));
         if (i < 2 && j < 2) {
           if (get_src_cell(m, v, tgt_elem) != ic) ++ne;

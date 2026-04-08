@@ -42,6 +42,7 @@ namespace ko = Kokkos;
 namespace slmm {
 using siqk::Int;
 using siqk::Real;
+using siqk::sp;
 typedef Int Size;
 
 #ifdef COMPOSE_TIMERS
@@ -86,18 +87,18 @@ struct Basis {
 // These basis functions follow TempestRemap's monotone_type 0 and 1 basis
 // functions.
 class GLL {
-  const Real oo3 = 1.0/3.0;
-  const Real to3 = 2.0/3.0;
-  const Real oo6 = 1.0/6.0;
-  const Real oo8 = 1.0/8.0;
-  const Real sqrt5 = std::sqrt(5.0);
-  const Real oosqrt5 = 1.0/sqrt5;
-  const Real np2_coord[2] = {-1.0, 1.0};
-  const Real np2_wt[2]    = {1.0, 1.0};
-  const Real np3_coord[3] = {-1.0, 0.0, 1.0};
-  const Real np3_wt[3]    = {oo3, 2.0 - to3, oo3};
-  const Real np4_coord[4] = {-1.0, -oosqrt5, oosqrt5, 1.0};
-  const Real np4_wt[4]    = {oo6, 1.0 - oo6, 1.0 - oo6, oo6};
+  const Real oo3 = sp(1.0/3.0);
+  const Real to3 = sp(2.0/3.0);
+  const Real oo6 = sp(1.0/6.0);
+  const Real oo8 = sp(1.0/8.0);
+  const Real sqrt5 = std::sqrt(sp(5.0));
+  const Real oosqrt5 = sp(1.0)/sqrt5;
+  const Real np2_coord[2] = {sp(-1.0), sp(1.0)};
+  const Real np2_wt[2]    = {sp(1.0), sp(1.0)};
+  const Real np3_coord[3] = {sp(-1.0), sp(0.0), sp(1.0)};
+  const Real np3_wt[3]    = {oo3, sp(2.0) - to3, oo3};
+  const Real np4_coord[4] = {sp(-1.0), -oosqrt5, oosqrt5, sp(1.0)};
+  const Real np4_wt[4]    = {oo6, sp(1.0) - oo6, sp(1.0) - oo6, oo6};
 
 public:
   enum { np_max = 4 };
@@ -137,23 +138,23 @@ public:
       siqk::error("GLL::eval: monotone_type not supported.");
     switch (b.np) {
     case 2: {
-      ge[0] = 0.5*(1.0 - x);
-      ge[1] = 0.5*(1.0 + x);
+      ge[0] = sp(0.5)*(sp(1.0) - x);
+      ge[1] = sp(0.5)*(sp(1.0) + x);
     } break;
     case 3: {
       const Real x2 = x*x;
       if (b.monotone_type == 0) {
-        ge[0] = 0.5*(x2 - x);
-        ge[1] = 1.0 - x2;
-        ge[2] = 0.5*(x2 + x);
+        ge[0] = sp(0.5)*(x2 - x);
+        ge[1] = sp(1.0) - x2;
+        ge[2] = sp(0.5)*(x2 + x);
       } else {
         if (x < 0) {
           ge[0] = x2;
-          ge[1] = 1 - x2;
+          ge[1] = sp(1.0) - x2;
           ge[2] = 0;
         } else {
           ge[0] = 0;
-          ge[1] = 1 - x2;
+          ge[1] = sp(1.0) - x2;
           ge[2] = x2;
         }
       }
@@ -161,32 +162,32 @@ public:
     case 4: {
       const Real x2 = x*x;
       if (b.monotone_type == 0) {
-        ge[0] = (1.0 - x)*(5.0*x2 - 1.0)*oo8;
-        ge[1] = -sqrt5*oo8*(sqrt5 - 5.0*x)*(x2 - 1.0);
-        ge[2] = -sqrt5*oo8*(sqrt5 + 5.0*x)*(x2 - 1.0);
-        ge[3] = (1.0 + x)*(5.0*x2 - 1.0)*oo8;
+        ge[0] = (sp(1.0) - x)*(sp(5.0)*x2 - sp(1.0))*oo8;
+        ge[1] = -sqrt5*oo8*(sqrt5 - sp(5.0)*x)*(x2 - sp(1.0));
+        ge[2] = -sqrt5*oo8*(sqrt5 + sp(5.0)*x)*(x2 - sp(1.0));
+        ge[3] = (sp(1.0) + x)*(sp(5.0)*x2 - sp(1.0))*oo8;
       } else {
-        const Real a0 = (1 + sqrt5)/16;
-        const Real b0 = (5 + sqrt5)/16;
-        const Real c0 = (-5 - 5*sqrt5)/16;
-        const Real d0 = (-25 - 5*sqrt5)/16;
-        const Real b1 = -0.75*sqrt5;
-        const Real d1 = 1.25*sqrt5;
+        const Real a0 = (sp(1.0) + sqrt5)/sp(16.0);
+        const Real b0 = (sp(5.0) + sqrt5)/sp(16.0);
+        const Real c0 = (sp(-5.0) - sp(5.0)*sqrt5)/sp(16.0);
+        const Real d0 = (sp(-25.0) - sp(5.0)*sqrt5)/sp(16.0);
+        const Real b1 = -sp(0.75)*sqrt5;
+        const Real d1 = sp(1.25)*sqrt5;
         if (x < -oosqrt5) {
           ge[0] = a0 + x*(b0 + x*(c0 + x*d0));
-          ge[1] = 1 - ge[0];
+          ge[1] = sp(1.0) - ge[0];
           ge[2] = 0;
           ge[3] = 0;
         } else if (x < oosqrt5) {
           ge[0] = 0;
-          ge[1] = 0.5 + x*(b1 + x2*d1);
-          ge[2] = 1 - ge[1];
+          ge[1] = sp(0.5) + x*(b1 + x2*d1);
+          ge[2] = sp(1.0) - ge[1];
           ge[3] = 0;
         } else {
           ge[0] = 0;
           ge[1] = 0;
           ge[3] = a0 - x*(b0 - x*(c0 - x*d0));
-          ge[2] = 1 - ge[3];
+          ge[2] = sp(1.0) - ge[3];
         }
       }
     } break;
@@ -202,20 +203,20 @@ public:
       siqk::error("GLL::eval: monotone_type not supported.");
     switch (b.np) {
     case 2: {
-      ge[0] = -0.5;
-      ge[1] =  0.5;
+      ge[0] = -sp(0.5);
+      ge[1] =  sp(0.5);
     } break;
     case 3: {
-      const Real x2p = 2*x;
-      ge[0] =  0.5*(x2p - 1);
+      const Real x2p = sp(2.0)*x;
+      ge[0] =  sp(0.5)*(x2p - sp(1.0));
       ge[1] = -x2p;
-      ge[2] =  0.5*(x2p + 1);
+      ge[2] =  sp(0.5)*(x2p + sp(1.0));
     } break;
     case 4: {
-      ge[0] =  oo8*((10 - 15*x)*x + 1);
-      ge[1] = -sqrt5*oo8*((2*sqrt5 - 15*x)*x + 5);
-      ge[2] = -sqrt5*oo8*((2*sqrt5 + 15*x)*x - 5);
-      ge[3] =  oo8*((10 + 15*x)*x - 1);
+      ge[0] =  oo8*((sp(10.0) - sp(15.0)*x)*x + sp(1.0));
+      ge[1] = -sqrt5*oo8*((sp(2.0)*sqrt5 - sp(15.0)*x)*x + sp(5.0));
+      ge[2] = -sqrt5*oo8*((sp(2.0)*sqrt5 + sp(15.0)*x)*x - sp(5.0));
+      ge[3] =  oo8*((sp(10.0) + sp(15.0)*x)*x - sp(1.0));
     } break;
     default:
       for (int i = 0; i < b.np; ++i) ge[i] = 0;

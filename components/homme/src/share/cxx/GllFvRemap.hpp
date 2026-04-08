@@ -27,7 +27,7 @@ public:
   // Need this only if the object was created before the various other objects
   // were initialized.
   void setup();
-  
+
   void reset(const SimulationParams& params);
 
   int requested_buffer_size() const;
@@ -41,8 +41,8 @@ public:
   typedef Phys3T::const_type CPhys3T;
 
   void init_data(const int nf, const int nf_max, const bool theta_hydrostatic_mode,
-                 const Real* fv_metdet, const Real* g2f_remapd, const Real* f2g_remapd,
-                 const Real* D_f, const Real* Dinv_f);
+                 CF90Ptr fv_metdet, CF90Ptr g2f_remapd, CF90Ptr f2g_remapd,
+                 CF90Ptr D_f, CF90Ptr Dinv_f);
 
   // The following three routines provide dynamics-physics coupling for the
   // atmosphere model.
@@ -53,7 +53,7 @@ public:
                           // T,omega(ie,col,lev)
                           const Phys2T& T, const Phys2T& omega,
                           // uv(ie, col, 0 or 1, lev)
-                          const Phys3T& uv, 
+                          const Phys3T& uv,
                           // q(ie,col,idx,lev)
                           const Phys3T& q,
                           // Optionally return dp
