@@ -42,9 +42,9 @@ struct LimiterFunctor {
   ElementsState       m_state;
   Buffers             m_buffers;
   ElementsGeometry    m_geometry;
-  
-  double              m_dp3d_thresh;
-  double              m_vtheta_thresh;           
+
+  Real              m_dp3d_thresh;
+  Real              m_vtheta_thresh;
 
   struct TagDp3dLimiter {};
 

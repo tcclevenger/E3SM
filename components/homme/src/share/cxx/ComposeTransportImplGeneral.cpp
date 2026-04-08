@@ -16,6 +16,27 @@ sl_get_params(double* nu_q, double* hv_scaling, int* hv_q, int* hv_subcycle_q,
               int* trajectory_nsubstep, int* trajectory_nvelocity,
               int* diagnostics, bool* do_3d_turbulence);
 
+template <class T>
+void sl_get_params_interface(T* nu_q, T* hv_scaling, int* hv_q, int* hv_subcycle_q,
+                             int* limiter_option, int* cdr_check, int* geometry_type,
+                             int* trajectory_nsubstep, int* trajectory_nvelocity,
+                             int* diagnostics, bool* do_3d_turbulence) {
+  if constexpr (std::is_same_v<T, double>) {
+    sl_get_params(nu_q, hv_scaling, hv_q, hv_subcycle_q,
+                  limiter_option, cdr_check, geometry_type,
+                  trajectory_nsubstep, trajectory_nvelocity,
+                  diagnostics, do_3d_turbulence);
+  } else {
+    double nu_q_d, hv_scaling_d;
+    sl_get_params(&nu_q_d, &hv_scaling_d, hv_q, hv_subcycle_q,
+                  limiter_option, cdr_check, geometry_type,
+                  trajectory_nsubstep, trajectory_nvelocity,
+                  diagnostics, do_3d_turbulence);
+    *nu_q       = static_cast<T>(nu_q_d);
+    *hv_scaling = static_cast<T>(hv_scaling_d);
+  }
+}
+
 namespace Homme {
 
 static int calc_nslot (const int nelemd) {
@@ -57,10 +78,10 @@ void ComposeTransportImpl::reset (const SimulationParams& params) {
 
   const bool independent_time_steps = params.dt_tracer_factor > params.dt_remap_factor;
 
-  sl_get_params(&m_data.nu_q, &m_data.hv_scaling, &m_data.hv_q, &m_data.hv_subcycle_q,
-                &m_data.limiter_option, &m_data.cdr_check, &m_data.geometry_type,
-                &m_data.trajectory_nsubstep, &m_data.trajectory_nvelocity,
-                &m_data.diagnostics, &m_data.do_3d_turbulence);
+  sl_get_params_interface(&m_data.nu_q, &m_data.hv_scaling, &m_data.hv_q, &m_data.hv_subcycle_q,
+                          &m_data.limiter_option, &m_data.cdr_check, &m_data.geometry_type,
+                          &m_data.trajectory_nsubstep, &m_data.trajectory_nvelocity,
+                          &m_data.diagnostics, &m_data.do_3d_turbulence);
 
   if (independent_time_steps != m_data.independent_time_steps or
       m_data.nelemd != num_elems or m_data.qsize != params.qsize) {

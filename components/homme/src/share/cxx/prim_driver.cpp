@@ -57,7 +57,7 @@ void initialize_dp3d_from_ps_c () {
   GPTLstop("tl-sc dp3d-from-ps");
 }
 
-void prim_run_subcycle_c (const Real& dt, int& nstep, int& nm1, int& n0, int& np1, 
+void prim_run_subcycle_c (const F90Real& dt, int& nstep, int& nm1, int& n0, int& np1,
                           const int& next_output_step, const int& nsplit_iteration)
 {
   GPTLstart("tl-sc prim_run_subcycle_c");
@@ -72,9 +72,10 @@ void prim_run_subcycle_c (const Real& dt, int& nstep, int& nm1, int& n0, int& np
   const bool independent_time_steps = (params.transport_alg > 0 &&
                                        params.dt_remap_factor < params.dt_tracer_factor);
 
+
   // Get time info and compute dt for tracers and remap
   TimeLevel& tl = context.get<TimeLevel>();
-  const Real dt_q = dt*params.dt_tracer_factor;
+  const Real dt_q = sp(dt)*params.dt_tracer_factor;
   Real dt_remap;
   int nstep_end; // nstep at end of this routine
   if (params.dt_remap_factor == 0) {
@@ -82,7 +83,7 @@ void prim_run_subcycle_c (const Real& dt, int& nstep, int& nm1, int& n0, int& np
     dt_remap = dt_q;
     nstep_end = tl.nstep + params.dt_tracer_factor;
   } else {
-    dt_remap = dt*params.dt_remap_factor;
+    dt_remap = sp(dt)*params.dt_remap_factor;
     nstep_end = tl.nstep + (std::max(params.dt_remap_factor, params.dt_tracer_factor));
   }
 
@@ -113,12 +114,12 @@ void prim_run_subcycle_c (const Real& dt, int& nstep, int& nm1, int& n0, int& np
     }
 
     apply_cam_forcing_dynamics(dt_remap);
-    
+
 #else
     // standalone homme, support ftype0 and ftype2
     // ftype0  = ftype2 if dt_remap>=dt_tracer, but
     // ftype0 != ftype2 for dt_remap<dt_tracer
-    if (params.ftype == ForcingAlg::FORCING_0 || 
+    if (params.ftype == ForcingAlg::FORCING_0 ||
         params.ftype == ForcingAlg::FORCING_2) {
       apply_cam_forcing(dt_remap);
     }
@@ -131,10 +132,10 @@ void prim_run_subcycle_c (const Real& dt, int& nstep, int& nm1, int& n0, int& np
 
     // Loop over rsplit vertically lagrangian timesteps
     GPTLstart("tl-sc prim_step-loop");
-    prim_step(dt,compute_diagnostics);
+    prim_step(sp(dt),compute_diagnostics);
     for (int r=1; r<params.rsplit; ++r) {
       tl.update_dynamics_levels(UpdateType::LEAPFROG);
-      prim_step(dt,false);
+      prim_step(sp(dt),false);
     }
     GPTLstop("tl-sc prim_step-loop");
 
@@ -160,7 +161,7 @@ void prim_run_subcycle_c (const Real& dt, int& nstep, int& nm1, int& n0, int& np
     ////////////////////////////////////////////////////////////////////////
     update_q(tl.np1_qdp,tl.np1);
   } else { // independent_time_steps
-    prim_step_flexible(dt, compute_diagnostics);
+    prim_step_flexible(sp(dt), compute_diagnostics);
   }
 
   if (compute_diagnostics) {

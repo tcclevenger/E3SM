@@ -67,7 +67,7 @@ set_elem_data (const int ie,
                CF90Ptr& spheremp, CF90Ptr& rspheremp,
                CF90Ptr& metdet, CF90Ptr& metinv,
                CF90Ptr& tensorvisc, CF90Ptr& vec_sph2cart, const bool consthv,
-               const Real* sphere_cart, const Real* sphere_latlon) {
+               const F90Real* sphere_cart, const F90Real* sphere_latlon) {
   // Check geometry was inited
   assert (m_num_elems>0);
 
@@ -78,9 +78,9 @@ set_elem_data (const int ie,
   using TensorView   = ExecViewUnmanaged<Real [2][2][NP][NP]>;
   using Tensor23View = ExecViewUnmanaged<Real [2][3][NP][NP]>;
 
-  using ScalarViewF90   = HostViewUnmanaged<const double [NP][NP]>;
-  using TensorViewF90   = HostViewUnmanaged<const double [2][2][NP][NP]>;
-  using Tensor23ViewF90 = HostViewUnmanaged<const double [2][3][NP][NP]>;
+  using ScalarViewF90   = HostViewUnmanaged<const F90Real [NP][NP]>;
+  using TensorViewF90   = HostViewUnmanaged<const F90Real [2][2][NP][NP]>;
+  using Tensor23ViewF90 = HostViewUnmanaged<const F90Real [2][3][NP][NP]>;
 
   ScalarView::HostMirror h_fcor      = Kokkos::create_mirror_view(Homme::subview(m_fcor,ie));
   ScalarView::HostMirror h_metdet    = Kokkos::create_mirror_view(Homme::subview(m_metdet,ie));
@@ -164,11 +164,11 @@ set_elem_data (const int ie,
   Kokkos::deep_copy(Homme::subview(m_vec_sph2cart,ie), h_vec_sph2cart);
 
   if (sphere_cart && m_sphere_cart.size() != 0) {
-    const auto fsc = HostViewUnmanaged<const Real [NP][NP][3]>(sphere_cart);
+    const auto fsc = HostViewUnmanaged<const F90Real [NP][NP][3]>(sphere_cart);
     Kokkos::deep_copy(Homme::subview(m_sphere_cart, ie), fsc);
   }
   if (sphere_latlon && m_sphere_latlon.size() != 0) {
-    const auto fsl = HostViewUnmanaged<const Real [NP][NP][2]>(sphere_latlon);
+    const auto fsl = HostViewUnmanaged<const F90Real [NP][NP][2]>(sphere_latlon);
     Kokkos::deep_copy(Homme::subview(m_sphere_latlon, ie), fsl);
   }
 }
@@ -182,7 +182,7 @@ set_phis (const int ie, CF90Ptr& phis) {
   assert (ie>=0 && ie<m_num_elems);
 
   using ScalarView    = ExecViewUnmanaged<Real [NP][NP]>;
-  using ScalarViewF90 = HostViewUnmanaged<const double [NP][NP]>;
+  using ScalarViewF90 = HostViewUnmanaged<const F90Real [NP][NP]>;
 
   ScalarViewF90           h_phis_f90 (phis);
   ScalarView::HostMirror  h_phis = Kokkos::create_mirror_view(Homme::subview(m_phis,ie));

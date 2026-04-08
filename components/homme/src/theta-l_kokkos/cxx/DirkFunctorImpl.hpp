@@ -361,6 +361,7 @@ struct DirkFunctorImpl {
           loop_ki(kv, nlev-1, nvec, [&] (int k, int i) {
             dphi(k,i) = dphi_n0(k,i) + dt2*grav*(         (w_np1(k+1,i) - w_np1(k,i)) +
                                                  wrk(2,i)*(    x(k+1,i) -     x(k,i)));
+
           });
           loop_ki(kv, 1, nvec, [&] (int, int i) {
             const auto k = nlev-1;
@@ -382,8 +383,8 @@ struct DirkFunctorImpl {
       kv.team_barrier();
 
       if (it >= maxiter) {
-        Kokkos::printf("[DIRK] WARNING! Newton reached max iteration count,"
-                       " with deltaerr = %3.17f\n", deltaerr);
+        Kokkos::printf("%d: [DIRK] WARNING! Newton reached max iteration count,"
+                       " with deltaerr = %3.17f\n",it, deltaerr);
         nerr = 1;
       }
 

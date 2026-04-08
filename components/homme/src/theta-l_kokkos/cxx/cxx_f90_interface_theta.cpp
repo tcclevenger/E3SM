@@ -40,14 +40,14 @@ extern "C"
 
 void init_simulation_params_c (const int& remap_alg, const int& limiter_option, const int& rsplit, const int& qsplit,
                                const int& time_step_type, const int& qsize, const int& state_frequency,
-                               const double& nu, const double& nu_p, const double& nu_q, const double& nu_s, const double& nu_div, const double& nu_top,
+                               const F90Real& nu, const F90Real& nu_p, const F90Real& nu_q, const F90Real& nu_s, const F90Real& nu_div, const F90Real& nu_top,
                                const int& hypervis_order, const int& hypervis_subcycle, const int& hypervis_subcycle_tom,
-                               const Real& hypervis_scaling, const Real& dcmip16_mu,
+                               const F90Real& hypervis_scaling, const F90Real& dcmip16_mu,
                                const int& ftype, const int& theta_adv_form, const int& prescribed_wind, const int& use_moisture, const int& disable_diagnostics,
                                const int& use_cpstar, const int& transport_alg, const int& theta_hydrostatic_mode, const char** test_case,
                                const int& dt_remap_factor, const int& dt_tracer_factor,
-                               const Real& scale_factor, const Real& laplacian_rigid_factor, const int& nsplit, const int& pgrad_correction,
-                               const Real& dp3d_thresh, const Real& vtheta_thresh, const int& internal_diagnostics_level,
+                               const F90Real& scale_factor, const F90Real& laplacian_rigid_factor, const int& nsplit, const int& pgrad_correction,
+                               const F90Real& dp3d_thresh, const F90Real& vtheta_thresh, const int& internal_diagnostics_level,
                                const int& do_3d_turbulence)
 {
 
@@ -181,11 +181,11 @@ void init_simulation_params_c (const int& remap_alg, const int& limiter_option, 
 
 }
 
-void init_hvcoord_c (const Real& ps0, CRCPtr& hybrid_am_ptr, CRCPtr& hybrid_ai_ptr,
-                                      CRCPtr& hybrid_bm_ptr, CRCPtr& hybrid_bi_ptr)
+void init_hvcoord_c (const F90Real& ps0, CRCPtr& hybrid_am_ptr, CRCPtr& hybrid_ai_ptr,
+                     CRCPtr& hybrid_bm_ptr, CRCPtr& hybrid_bi_ptr)
 {
   HybridVCoord& hvcoord = Context::singleton().create<HybridVCoord>();
-  hvcoord.init(ps0,hybrid_am_ptr,hybrid_ai_ptr,hybrid_bm_ptr,hybrid_bi_ptr);
+  hvcoord.init(sp(ps0),hybrid_am_ptr,hybrid_ai_ptr,hybrid_bm_ptr,hybrid_bi_ptr);
 }
 
 void cxx_push_results_to_f90(F90Ptr &elem_state_v_ptr,         F90Ptr &elem_state_w_i_ptr,
@@ -204,8 +204,8 @@ void cxx_push_results_to_f90(F90Ptr &elem_state_v_ptr,         F90Ptr &elem_stat
 
   // F90 ptrs to arrays (np,np,num_time_levels,nelemd) can be stuffed directly
   // in an unmanaged view
-  // with scalar Real*[NUM_TIME_LEVELS][NP][NP] (with runtime dimension nelemd)
-  HostViewUnmanaged<Real * [NUM_TIME_LEVELS][NP][NP]> ps_v_f90(
+  // with scalar F90Real*[NUM_TIME_LEVELS][NP][NP] (with runtime dimension nelemd)
+  HostViewUnmanaged<F90Real * [NUM_TIME_LEVELS][NP][NP]> ps_v_f90(
       elem_state_ps_v_ptr, num_elems);
 
   auto ps_v_host = Kokkos::create_mirror_view(state.m_ps_v);
@@ -215,10 +215,10 @@ void cxx_push_results_to_f90(F90Ptr &elem_state_v_ptr,         F90Ptr &elem_stat
 
   ElementsDerivedState &derived = Context::singleton().get<ElementsDerivedState>();
   sync_to_host(derived.m_omega_p,
-               HostViewUnmanaged<Real * [NUM_PHYSICAL_LEV][NP][NP]>(
+               HostViewUnmanaged<F90Real * [NUM_PHYSICAL_LEV][NP][NP]>(
                    elem_derived_omega_p_ptr, num_elems));
   sync_to_host(tracers.Q,
-               HostViewUnmanaged<Real * [QSIZE_D][NUM_PHYSICAL_LEV][NP][NP]>(
+               HostViewUnmanaged<F90Real * [QSIZE_D][NUM_PHYSICAL_LEV][NP][NP]>(
                    elem_Q_ptr, num_elems));
 }
 
@@ -232,19 +232,19 @@ void push_forcing_to_c (F90Ptr elem_derived_FM,
   ElementsForcing &forcing = Context::singleton().get<ElementsForcing>();
   const int num_elems = forcing.num_elems();
 
-  HostViewUnmanaged<Real *[NUM_PHYSICAL_LEV][3][NP][NP]> fm_f90(
+  HostViewUnmanaged<F90Real *[NUM_PHYSICAL_LEV][3][NP][NP]> fm_f90(
       elem_derived_FM, num_elems);
   sync_to_device<3>(fm_f90, forcing.m_fm);
 
-  HostViewUnmanaged<Real * [NUM_PHYSICAL_LEV][NP][NP]> fvtheta_f90(
+  HostViewUnmanaged<F90Real * [NUM_PHYSICAL_LEV][NP][NP]> fvtheta_f90(
       elem_derived_FVTheta, num_elems);
   sync_to_device(fvtheta_f90, forcing.m_fvtheta);
 
-  HostViewUnmanaged<Real * [NUM_PHYSICAL_LEV][NP][NP]> ft_f90(
+  HostViewUnmanaged<F90Real * [NUM_PHYSICAL_LEV][NP][NP]> ft_f90(
       elem_derived_FT, num_elems);
   sync_to_device(ft_f90, forcing.m_ft);
 
-  HostViewUnmanaged<Real * [NUM_INTERFACE_LEV][NP][NP]> fphi_f90(
+  HostViewUnmanaged<F90Real * [NUM_INTERFACE_LEV][NP][NP]> fphi_f90(
       elem_derived_FPHI, num_elems);
   sync_to_device(fphi_f90, forcing.m_fphi);
 
@@ -252,7 +252,7 @@ void push_forcing_to_c (F90Ptr elem_derived_FM,
   if (tracers.fq.data() == nullptr) {
     tracers.fq = decltype(tracers.fq)("fq", num_elems, tracers.num_tracers());
   }
-  HostViewUnmanaged<Real * [QSIZE_D][NUM_PHYSICAL_LEV][NP][NP]> fq_f90(
+  HostViewUnmanaged<F90Real * [QSIZE_D][NUM_PHYSICAL_LEV][NP][NP]> fq_f90(
       elem_derived_FQ, num_elems);
   sync_to_device(fq_f90, tracers.fq);
 }
@@ -459,7 +459,7 @@ void init_elements_2d_c (const int& ie,
                          CF90Ptr& spheremp, CF90Ptr& rspheremp,
                          CF90Ptr& metdet, CF90Ptr& metinv,
                          CF90Ptr &tensorvisc, CF90Ptr &vec_sph2cart,
-                         Real* sphere_cart_vec, Real* sphere_latlon_vec)
+                         F90Real* sphere_cart_vec, F90Real* sphere_latlon_vec)
 {
   auto& c = Context::singleton();
   Elements& e = c.get<Elements> ();
@@ -480,7 +480,7 @@ void init_geopotential_c (const int& ie,
   // Note: yes, we *could* compute gradphis from grad, but at the time of this call,
   //       we do not yet have the SphereOperators functor initialized. For simplicity,
   //       we just require gradphis as input, and copy it manually.
-  HostViewUnmanaged<const double [2][NP][NP]> h_gradphis(gradphis);
+  HostViewUnmanaged<const F90Real [2][NP][NP]> h_gradphis(gradphis);
   sync_to_device(h_gradphis,Homme::subview(geo.m_gradphis,ie));
 }
 
@@ -542,9 +542,9 @@ void init_reference_states_c (CF90Ptr& elem_theta_ref_ptr,
   const int num_elems = state.m_ref_states.num_elems();
   assert(num_elems>0);
 
-  HostViewUnmanaged<const Real*[NUM_PHYSICAL_LEV][NP][NP]>  theta_ref(elem_theta_ref_ptr,num_elems);
-  HostViewUnmanaged<const Real*[NUM_PHYSICAL_LEV][NP][NP]>  dp_ref(elem_dp_ref_ptr,num_elems);
-  HostViewUnmanaged<const Real*[NUM_INTERFACE_LEV][NP][NP]> phi_ref(elem_phi_ref_ptr,num_elems);
+  HostViewUnmanaged<const F90Real*[NUM_PHYSICAL_LEV][NP][NP]>  theta_ref(elem_theta_ref_ptr,num_elems);
+  HostViewUnmanaged<const F90Real*[NUM_PHYSICAL_LEV][NP][NP]>  dp_ref(elem_dp_ref_ptr,num_elems);
+  HostViewUnmanaged<const F90Real*[NUM_INTERFACE_LEV][NP][NP]> phi_ref(elem_phi_ref_ptr,num_elems);
 
   sync_to_device(theta_ref, ref_states.theta_ref);
   sync_to_device(dp_ref,    ref_states.dp_ref);
@@ -622,9 +622,9 @@ void push_test_state_to_c (
   auto& state = c.get<ElementsState>();
   state.pull_from_f90_pointers(v_ptr, w_i_ptr, vtheta_dp_ptr, phinh_i_ptr, dp3d_ptr, ps_v_ptr);
   auto& derived = c.get<ElementsDerivedState>();
-  HostViewUnmanaged<const Real*[NUM_INTERFACE_LEV][NP][NP]>
+  HostViewUnmanaged<const F90Real*[NUM_INTERFACE_LEV][NP][NP]>
     eta_dot_dpdn_h(eta_dot_dpdn_ptr, derived.num_elems());
-  HostViewUnmanaged<const Real*[NUM_PHYSICAL_LEV][2][NP][NP]>
+  HostViewUnmanaged<const F90Real*[NUM_PHYSICAL_LEV][2][NP][NP]>
     vn0_h(vn0_ptr, derived.num_elems());
   sync_to_device(eta_dot_dpdn_h, derived.m_eta_dot_dpdn);
   sync_to_device(vn0_h, derived.m_vn0);

@@ -27,7 +27,7 @@ void ttype9_imex_timestep (const TimeLevel& tl, const Real dt, const Real eta_av
 void ttype10_imex_timestep(const TimeLevel& tl, const Real dt, const Real eta_ave_w);
 
 // Prescribed-wind F90-C++ bridge. Test inputs are all implemented in F90.
-extern "C" void set_prescribed_wind_f_bridge(int n0, int np1, int nstep, Real dt);
+extern "C" void set_prescribed_wind_f_bridge(int n0, int np1, int nstep, F90Real dt);
 
 // -------------- IMPLEMENTATIONS -------------- //
 
@@ -49,7 +49,7 @@ void prim_advance_exp (TimeLevel& tl, const Real dt, const bool compute_diagnost
   tl.update_tracers_levels(params.dt_tracer_factor);
 
   // Set eta_ave_w
-  Real eta_ave_w = 1.0/params.dt_tracer_factor;
+  Real eta_ave_w = sp(1.0)/params.dt_tracer_factor;
 
   // From f90 code: "this should not be needed, but in case physics update u without updating w b.c."
   if (!params.theta_hydrostatic_mode) {
@@ -67,7 +67,7 @@ void prim_advance_exp (TimeLevel& tl, const Real dt, const bool compute_diagnost
       const int ie  = idx / (NP*NP);
       const int igp = (idx / NP) % NP;
       const int jgp = idx % NP;
-      w_i(ie,n0,igp,jgp,LAST_LEV_P)[LAST_INTERFACE_VEC_IDX] = 
+      w_i(ie,n0,igp,jgp,LAST_LEV_P)[LAST_INTERFACE_VEC_IDX] =
                       (v(ie,n0,0,igp,jgp,LAST_LEV)[LAST_MIDPOINT_VEC_IDX]*gradphis(ie,0,igp,jgp) +
                        v(ie,n0,1,igp,jgp,LAST_LEV)[LAST_MIDPOINT_VEC_IDX]*gradphis(ie,1,igp,jgp))/PhysicalConstants::g;
     });
@@ -77,7 +77,7 @@ void prim_advance_exp (TimeLevel& tl, const Real dt, const bool compute_diagnost
 #if !defined(CAM) && !defined(SCREAM)
   // If prescribed wind, set the dynamics explicitly and skip time-integration.
   if (params.prescribed_wind) {
-    set_prescribed_wind_f_bridge(tl.n0, tl.np1, tl.nstep, dt);
+    set_prescribed_wind_f_bridge(tl.n0, tl.np1, tl.nstep, F90Real(dt));
     GPTLstop("tl-ae prim_advance_exp");
     return;
   }
@@ -111,7 +111,7 @@ void prim_advance_exp (TimeLevel& tl, const Real dt, const bool compute_diagnost
     diags.run_diagnostics(false,4);
   }
 
-  //// case nu=0 but nu_top>0?  
+  //// case nu=0 but nu_top>0?
   if (params.hypervis_order==2 && params.nu>0) {
     HyperviscosityFunctor& functor = context.get<HyperviscosityFunctor>();
     GPTLstart("tl-ae advance_hypervis_dp");
@@ -218,7 +218,7 @@ void ttype7_imex_timestep(const TimeLevel& /* tl */,
 }
 
 //note that ttype9 and ttype10 caqnnot be generalized easily into
-//one routine because of the 
+//one routine because of the
 //summation in expl part in stage 5 in ttype9
 void ttype9_imex_timestep(const TimeLevel& tl,
                          const Real dt_dyn,
@@ -276,14 +276,14 @@ void ttype9_imex_timestep(const TimeLevel& tl,
   dt = 3.0*dt_dyn/4.0;
   caar.run(RKStageData(nm1, np1, np1, qn0, dt, 3.0*eta_ave_w/4.0, 1.0, 0.0, 1.0));
   // u(np1) = [u1 + 3dt/4 RHS(u4)] +  1/4 (u1 - u0)
-  { 
+  {
     const auto v         = elements.m_state.m_v;
     const auto w         = elements.m_state.m_w_i;
     const auto vtheta_dp = elements.m_state.m_vtheta_dp;
     const auto phinh     = elements.m_state.m_phinh_i;
     const auto dp3d      = elements.m_state.m_dp3d;
     const auto hydrostatic_mode = params.theta_hydrostatic_mode;
-    
+
     Kokkos::parallel_for(
       Kokkos::RangePolicy<ExecSpace>(0, elements.num_elems()*NP*NP*NUM_LEV),
       KOKKOS_LAMBDA(const int it) {
@@ -295,7 +295,7 @@ void ttype9_imex_timestep(const TimeLevel& tl,
         v(ie,np1,1,igp,jgp,ilev) += (v(ie,nm1,1,igp,jgp,ilev)-v(ie,n0,1,igp,jgp,ilev))/4.0;
         vtheta_dp(ie,np1,igp,jgp,ilev) += (vtheta_dp(ie,nm1,igp,jgp,ilev)-vtheta_dp(ie,n0,igp,jgp,ilev))/4.0;
         dp3d(ie,np1,igp,jgp,ilev)      += (dp3d(ie,nm1,igp,jgp,ilev)-dp3d(ie,n0,igp,jgp,ilev))/4.0;
-        if (!hydrostatic_mode) { 
+        if (!hydrostatic_mode) {
           w(ie,np1,igp,jgp,ilev)       += (w(ie,nm1,igp,jgp,ilev)-w(ie,n0,igp,jgp,ilev))/4.0;
           phinh(ie,np1,igp,jgp,ilev)   += (phinh(ie,nm1,igp,jgp,ilev)-phinh(ie,n0,igp,jgp,ilev))/4.0;
         }
@@ -309,7 +309,7 @@ void ttype9_imex_timestep(const TimeLevel& tl,
            const int igp = (it / NP) % NP;
            const int jgp =  it % NP;
            w(ie,np1,igp,jgp,LAST_INT)  += (w(ie,nm1,igp,jgp,LAST_INT)-w(ie,n0,igp,jgp,LAST_INT))/4.0;
-      });  
+      });
     }
   }
   Kokkos::fence();

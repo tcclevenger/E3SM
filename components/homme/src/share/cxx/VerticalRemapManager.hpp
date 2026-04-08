@@ -9,6 +9,8 @@
 
 #include <memory>
 
+#include "Types.hpp"
+
 namespace Homme {
 
 class FunctorsBuffersManager;
@@ -20,7 +22,7 @@ struct VerticalRemapManager {
 
   VerticalRemapManager(const int num_elems, const bool remap_tracers=true);
 
-  void run_remap(int np1, int np1_qdp, double dt) const;
+  void run_remap(int np1, int np1_qdp, Real dt) const;
 
   int requested_buffer_size () const;
   void init_buffers(const FunctorsBuffersManager& fbm);

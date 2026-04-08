@@ -27,6 +27,8 @@ using Real = float;
 using Real = double;
 #endif
 
+using F90Real = double; // For HOMMEXX_SINGLE_PRECISION, F90 still uses double
+
 /*
  * Utility function for handling floating point literals,
  * so that they match the hommexx precision.
@@ -39,9 +41,9 @@ sp (const T val) {
 
 using RCPtr = Real *const;
 using CRCPtr = const Real *const;
-using F90Ptr = double *const; // Using this in a function signature emphasizes
+using F90Ptr = F90Real *const; // Using this in a function signature emphasizes
                             // that the ordering is Fortran
-using CF90Ptr = const double *const; // Using this in a function signature
+using CF90Ptr = const F90Real *const; // Using this in a function signature
                                    // emphasizes that the ordering is Fortran
 
 using VectorTagType = KokkosKernels::Batched::Experimental::SIMD<Real, ExecSpace>;
