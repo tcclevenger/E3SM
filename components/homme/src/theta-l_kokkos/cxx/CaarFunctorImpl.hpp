@@ -408,7 +408,7 @@ struct CaarFunctorImpl {
     compute_dp_and_theta_tens (kv);
 
     // ============= EPOCH 4 =========== //
-    // compute_v_tens reuses some buffers used by compute_dp_and_theta_tens 
+    // compute_v_tens reuses some buffers used by compute_dp_and_theta_tens
     kv.team_barrier();
     compute_v_tens (kv);
 
@@ -518,7 +518,7 @@ struct CaarFunctorImpl {
   KOKKOS_INLINE_FUNCTION
   bool compute_scan_quantities (KernelVariables &kv) const {
     bool ok = true;
-    
+
     kv.team_barrier();
     Kokkos::parallel_for(Kokkos::TeamThreadRange(kv.team,NP*NP),
                          [&](const int idx) {
@@ -1264,6 +1264,25 @@ struct CaarFunctorImpl {
                                        Homme::subview(m_buffers.v_tens,kv.team_idx));
     }
 
+    kv.team_barrier();
+    auto cp_vtheta_grad_exner = [&] (const int cmp, const int igp, const int jgp, const int ilev) -> Scalar {
+      return PhysicalConstants::cp *
+             (m_state.m_vtheta_dp(kv.ie,m_data.n0,igp,jgp,ilev) / m_state.m_dp3d(kv.ie,m_data.n0,igp,jgp,ilev)) *
+             grad_exner(cmp,igp,jgp,ilev);
+    };
+    Kokkos::parallel_for(Kokkos::TeamThreadRange(kv.team,NP*NP),
+                         [&](const int idx) {
+      const int igp = idx / NP;
+      const int jgp = idx % NP;
+
+      Kokkos::parallel_for(Kokkos::ThreadVectorRange(kv.team,NUM_LEV),
+                           [&](const int ilev) {
+        grad_tmp(0,igp,jgp,ilev) = cp_vtheta_grad_exner(0,igp,jgp,ilev);
+        grad_tmp(1,igp,jgp,ilev) = cp_vtheta_grad_exner(1,igp,jgp,ilev);
+      });
+    });
+    kv.team_barrier();
+
     Kokkos::parallel_for(Kokkos::TeamThreadRange(kv.team,NP*NP),
                          [&](const int idx) {
       const int igp = idx / NP;
@@ -1279,12 +1298,10 @@ struct CaarFunctorImpl {
       Kokkos::parallel_for(Kokkos::ThreadVectorRange(kv.team,NUM_LEV),
                            [&](const int ilev) {
         // grad(exner)*vtheta*cp
-        Scalar cp_vtheta = PhysicalConstants::cp *
-                           (m_state.m_vtheta_dp(kv.ie,m_data.n0,igp,jgp,ilev) /
-                            m_state.m_dp3d(kv.ie,m_data.n0,igp,jgp,ilev));
-
-        u_tens(ilev) += cp_vtheta*grad_exner(0,igp,jgp,ilev);
-        v_tens(ilev) += cp_vtheta*grad_exner(1,igp,jgp,ilev);
+        //u_tens(ilev) += cp_vtheta_grad_exner(0,igp,jgp,ilev);
+        //v_tens(ilev) += cp_vtheta_grad_exner(1,igp,jgp,ilev);
+        u_tens(ilev) += grad_tmp(0,igp,jgp,ilev);
+        v_tens(ilev) += grad_tmp(1,igp,jgp,ilev);
 
         u_tens(ilev) += (mgrad(0,igp,jgp,ilev) + wvor(0,igp,jgp,ilev));
         v_tens(ilev) += (mgrad(1,igp,jgp,ilev) + wvor(1,igp,jgp,ilev));
