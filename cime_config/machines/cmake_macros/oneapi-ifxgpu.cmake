@@ -7,16 +7,16 @@ endif()
 
 # 'just' -g may lead to linker internal errors and/or huge builds out of quotas
 string(APPEND CMAKE_C_FLAGS         " -fp-model precise")
-string(APPEND CMAKE_C_FLAGS_RELEASE " -O2")
+string(APPEND CMAKE_C_FLAGS_RELEASE " -O3 -g")
 string(APPEND CMAKE_C_FLAGS_DEBUG   " -O0 -g -fno-system-debug")
 
 # EAMxx ignores generic CMAKE_CXX_FLAGS, includes CMAKE_CXX_FLAGS_[RELEASE,DEBUG]
 string(APPEND CMAKE_CXX_FLAGS         " -fp-model precise")
-string(APPEND CMAKE_CXX_FLAGS_RELEASE " -fp-model precise -O2 --offload-compress")
+string(APPEND CMAKE_CXX_FLAGS_RELEASE " -fp-model precise -O3 -g --offload-compress")
 string(APPEND CMAKE_CXX_FLAGS_DEBUG   " -O0 -g -fno-system-debug")
 
 string(APPEND CMAKE_Fortran_FLAGS " -fpscomp logicals -traceback -convert big_endian -assume byterecl -assume realloc_lhs -fp-model precise")
-string(APPEND CMAKE_Fortran_FLAGS_RELEASE " -O2")
+string(APPEND CMAKE_Fortran_FLAGS_RELEASE " -O3 -g")
 string(APPEND CMAKE_Fortran_FLAGS_DEBUG   " -O0 -g")
 
 string(APPEND CPPDEFS " -DFORTRANUNDERSCORE -DNO_R16 -DCPRINTEL -DHAVE_SLASHPROC -DHIDE_MPI")
