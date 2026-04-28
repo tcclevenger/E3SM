@@ -3449,7 +3449,7 @@
     <OS>LINUX</OS>
     <COMPILERS>oneapi-ifxgpu,oneapi-ifx</COMPILERS>
     <MPILIBS>mpich,mpich1024</MPILIBS>
-    <PROJECT>E3SM_Dec</PROJECT>
+    <PROJECT>gpu_hack</PROJECT>
     <SAVE_TIMING_DIR>/lus/flare/projects/E3SMinput/baselines</SAVE_TIMING_DIR>
     <SAVE_TIMING_DIR_PROJECTS>.*</SAVE_TIMING_DIR_PROJECTS>
     <CIME_OUTPUT_ROOT>/lus/flare/projects/$PROJECT/$USER/scratch</CIME_OUTPUT_ROOT>
