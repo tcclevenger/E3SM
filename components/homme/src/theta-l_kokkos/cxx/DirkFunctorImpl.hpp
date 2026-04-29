@@ -108,6 +108,7 @@ struct DirkFunctorImpl {
         nhwthr = p.first*p.second,
         nvec = std::min(NP*NP, nhwthr),
         nthr = nhwthr/nvec;
+      printf("TEAMPOLICY: nelem=%d nthr=%d nvec=%d\n", nelem, nthr, nvec);
       m_policy = TeamPolicy(nelem, nthr, nvec);
     } else {
       ThreadPreferences tp;
