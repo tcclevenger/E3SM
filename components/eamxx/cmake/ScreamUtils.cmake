@@ -87,7 +87,7 @@ list(REMOVE_ITEM SCREAM_CUT_EXEC_OPTIONS USER_DEFINED_TEST_SESSION)
 function(CreateUnitTestExec exec_name test_srcs)
 ###############################################################################
   # Call Ekat function, with a couple of extra params
-  EkatCreateUnitTestExec("${exec_name}" "${test_srcs}" ${ARGN}
+  EkatCreateUnitTestExec("${exec_name}" SOURCES "${test_srcs}" ${ARGN}
     USER_DEFINED_TEST_SESSION LIBS eamxx_test_support)
 endfunction(CreateUnitTestExec)
 
