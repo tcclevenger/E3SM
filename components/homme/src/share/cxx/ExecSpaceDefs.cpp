@@ -145,9 +145,11 @@ team_num_threads_vectors (const int num_parallel_iterations,
   // across CUDA, HIP and SYCL without any magic numbers.
   const int num_warps_device = HommexxGPU().concurrency() / num_threads_warp;
 #elif defined(KOKKOS_ENABLE_SYCL)
-  //const int num_threads_warp = Kokkos::TeamPolicy<HommexxGPU>::vector_length_max();
+  const int num_threads_warp_org = Kokkos::TeamPolicy<HommexxGPU>::vector_length_max();
   const int num_threads_warp = 16;
   const int num_warps_device = HommexxGPU().concurrency() / num_threads_warp;
+
+  printf("num_threads_warp_org: %d, num_threads_warp: %d, num_warps_device: %d\n", num_threads_warp_org, num_threads_warp, num_warps_device);
 #else
   // I want thread-distribution rules to be unit-testable even when GPU spaces
   // are off. Thus, make up a GPU-like machine:
