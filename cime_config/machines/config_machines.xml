@@ -3576,7 +3576,7 @@
         <env name="SYCL_PI_LEVEL_ZERO_SINGLE_THREAD_MODE">1</env>
         <env name="SYCL_PI_LEVEL_ZERO_DISABLE_USM_ALLOCATOR">1</env>
         <env name="SYCL_PI_LEVEL_ZERO_USM_RESIDENT">0x001</env>
-        <env name="IGC_ForceOCLSIMDWidth">32</env>
+        <env name="IGC_ForceOCLSIMDWidth">16</env>
         <env name="MPIR_CVAR_ENABLE_GPU">1</env>
         <env name="romio_cb_read">disable</env>
         <env name="romio_cb_write">disable</env>

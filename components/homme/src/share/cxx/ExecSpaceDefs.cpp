@@ -135,7 +135,7 @@ team_num_threads_vectors (const int num_parallel_iterations,
   max_num_warps = std::min(max_num_warps, 8);
 #endif
 
-#if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP) || defined(KOKKOS_ENABLE_SYCL)
+#if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP)
     // vector_length_max() is a static method — no instance needed.
   // It returns the hardware warp/wavefront/subgroup size for this backend
   const int num_threads_warp = Kokkos::TeamPolicy<HommexxGPU>::vector_length_max();
@@ -143,6 +143,10 @@ team_num_threads_vectors (const int num_parallel_iterations,
   // concurrency() returns total hardware threads across all SMs/CUs.
   // Dividing by warp size gives effective total warp count - portable
   // across CUDA, HIP and SYCL without any magic numbers.
+  const int num_warps_device = HommexxGPU().concurrency() / num_threads_warp;
+#elif defined(KOKKOS_ENABLE_SYCL)
+  //const int num_threads_warp = Kokkos::TeamPolicy<HommexxGPU>::vector_length_max();
+  const int num_threads_warp = 16;
   const int num_warps_device = HommexxGPU().concurrency() / num_threads_warp;
 #else
   // I want thread-distribution rules to be unit-testable even when GPU spaces
