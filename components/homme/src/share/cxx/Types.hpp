@@ -147,7 +147,7 @@ using Unmanaged =
   // Provide a full View type specification, augmented with Unmanaged.
   Kokkos::View<typename View::traits::data_type,
                typename View::traits::array_layout,
-               typename View::traits::device_type,
+               typename View::memory_space,
                Kokkos::MemoryTraits<
                  // All the current values...
                  Impl::MemoryTraitsMask<View>::value |
