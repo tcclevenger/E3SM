@@ -770,7 +770,7 @@ void HyperviscosityFunctorImpl::operator() (const TagSGSTurbLaplace&, const Team
       MidColumn wtens;
       IntColumn Km_i;
 
-      Real max_diffusivity = std::numeric_limits<Real>::max();
+      Real max_diffusivity = Kokkos::finite_max_v<Real>;
       if (m_data.horiz_turb_subcycle > 0 && lambda_vis > 0 && m_data.dt_hvs_sgs > 0) {
         const auto& dinv = m_geometry.m_dinv;
         const Real a = dinv(kv.ie,0,0,igp,jgp);
