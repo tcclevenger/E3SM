@@ -16,7 +16,7 @@
 namespace Homme
 {
 
-void HybridVCoord::init(const Real ps0_in,
+void HybridVCoord::init(const F90Real ps0_in,
                    CF90Ptr hybrid_am_ptr,
                    CF90Ptr hybrid_ai_ptr,
                    CF90Ptr hybrid_bm_ptr,
