@@ -10,14 +10,15 @@ void compose_repro_sum(const double* send, double* recv,
 template <class T>
 void compose_repro_sum_interface(const T* send, T* recv,
                                  int nlocal, int nfld, int fcomm) {
-  if constexpr (std::is_same_v<T, double>) {
-    compose_repro_sum(send, recv, nlocal, nfld, fcomm);
-  } else {
-    std::vector<double> send_d(nlocal*nfld), recv_d(nlocal*nfld);
-    for (int i = 0; i < nlocal*nfld; ++i) send_d[i] = send[i];
-    compose_repro_sum(send_d.data(), recv_d.data(), nlocal, nfld, fcomm);
-    for (int i = 0; i < nlocal*nfld; ++i) recv[i] = recv_d[i];
-  }
+#if HOMMEXX_SINGLE_PREC
+  // The Fortran reproducible sum interface always uses c_double.
+  const std::vector<double> send_double(send, send + nlocal*nfld);
+  std::vector<double> recv_double(nfld);
+  compose_repro_sum(send_double.data(), recv_double.data(), nlocal, nfld, fcomm);
+  std::copy(recv_double.begin(), recv_double.end(), recv);
+#else
+  compose_repro_sum(send, recv, nlocal, nfld, fcomm);
+#endif
 }
 
 namespace compose {
