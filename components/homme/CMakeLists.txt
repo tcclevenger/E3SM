@@ -102,9 +102,6 @@ OPTION(IS_BIG_ENDIAN "Whether the machine is big endian" FALSE)
 #  ${HOMME_BINARY_DIR}/tests/compilerTests/
 #  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/compilerTests/isBigEndian.c)
 
-# Default use double precision
-OPTION(HOMMEXX_SINGLE_PREC "Default to using single precision for Real type in HOMMEXX" FALSE)
-
 # Default use quad precision
 OPTION(HOMME_QUAD_PREC "Default to try to use quadruple precision" TRUE)
 
@@ -116,6 +113,9 @@ IF (${HOMME_QUAD_PREC})
                     system with this compiler")
   ENDIF()
 ENDIF ()
+
+# Default use double precision
+OPTION(HOMMEXX_SINGLE_PREC "Use single precision for Homme::Real in CXX code." FALSE)
 
 # Some options for conditional builds
 OPTION(BUILD_HOMME_SWEQX "Shallow water equations FEM" ON)
@@ -190,6 +190,19 @@ OPTION(HOMME_USE_ARKODE "Use ARKode package from SUNDIALS" FALSE)
 IF (${HOMME_USE_ARKODE})
   MESSAGE(STATUS "Using ARKode, adding -DARKODE")
   ADD_DEFINITIONS(-DARKODE)
+ENDIF ()
+
+# Checks for single precision
+IF (HOMMEXX_SINGLE_PREC)
+  IF (BUILD_HOMME_PREQX_KOKKOS)
+    MESSAGE(FATAL_ERROR
+      "BUILD_HOMME_PREQX_KOKKOS does not support HOMMEXX_SINGLE_PREC. "
+      "Disable one of these options.")
+  ELSEIF (NOT BUILD_HOMME_THETA_KOKKOS)
+    MESSAGE(STATUS
+      "HOMMEXX_SINGLE_PREC is ON but BUILD_HOMME_THETA_KOKKOS is OFF, "
+      "so no build is actually using single precision Real.")
+  ENDIF ()
 ENDIF ()
 
 IF (HOMME_USE_KOKKOS)

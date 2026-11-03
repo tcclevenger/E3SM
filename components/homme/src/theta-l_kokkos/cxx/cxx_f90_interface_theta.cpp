@@ -185,11 +185,6 @@ void init_simulation_params_c (const int& remap_alg, const int& limiter_option, 
 
   // Now this structure can be used safely
   params.params_set = true;
-
-  if (Context::singleton().get<Comm>().root()) {
-    params.print();
-  }
-
 }
 
 void init_hvcoord_c (const F90Real& ps0, CF90Ptr& hybrid_am_ptr, CF90Ptr& hybrid_ai_ptr,
