@@ -201,7 +201,7 @@ IF (HOMMEXX_SINGLE_PREC)
   ELSEIF (NOT BUILD_HOMME_THETA_KOKKOS)
     MESSAGE(STATUS
       "HOMMEXX_SINGLE_PREC is ON but BUILD_HOMME_THETA_KOKKOS is OFF, "
-      "so no build is actually using single precision Real.")
+      "so no build is actually using single precision real type.")
   ENDIF ()
 ENDIF ()
 
