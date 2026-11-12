@@ -25,7 +25,9 @@ getHommeView(const scream::Field& f) {
   auto p = f.get_header().get_parent();
   auto scream_view = f.template get_view<DataType>();
   using homme_view_t = ::Homme::ExecViewUnmanaged<DataType>;
-  if (p!=nullptr) {
+
+  // Note: rank 3 views automatically preserve LayoutRight
+  if (p!=nullptr && f.get_header().get_identifier().get_layout().rank() != 3) {
     // Need to fix the mapping stride, so that it can correctly map the subfield.
     homme_view_t tmp(scream_view.data(),scream_view.layout());
     auto vm = tmp.impl_map();

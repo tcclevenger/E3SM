@@ -219,9 +219,9 @@ auto Field::get_ND_view () const
     EKAT_REQUIRE_MSG (idim==0 || idim==1,
         "Error! Subview dimension index is out of bounds.\n");
 
-    EKAT_REQUIRE_MSG (idim==0 || N>1,
-        "Error! Cannot subview a rank-2 (or less) view along 2nd dimension "
-        "without losing LayoutRight.\n");
+    EKAT_REQUIRE_MSG (idim==0 || N==3,
+        "Error! Cannot subview a view along 2nd dimension without losing LayoutRight, unless the "
+        "view has rank 3. This is because Kokkos has a LayoutRightPadded which can account for the stride.\n");
 
     // Use SFINAE-ed get_subview helper function to pick correct
     // subview impl. If N+1<=2 and idim!=0, the code craps out in the check above.
