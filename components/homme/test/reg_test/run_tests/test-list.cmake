@@ -95,6 +95,7 @@ IF (BUILD_HOMME_THETA_KOKKOS)
   # Various one-off tests.
   IF (HOMME_ENABLE_COMPOSE)
     LIST(APPEND HOMME_TESTS
+      theta-ne30pg2-nlev128-eamxx-kokkos.cmake
       thetah-sl-testconv-3e-kokkos.cmake
       planar-transport-a-etm-kokkos.cmake)
     IF (HOMMEXX_BFB_TESTING)
